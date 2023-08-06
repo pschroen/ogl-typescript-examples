@@ -76,11 +76,7 @@ const fragment = /* glsl */ `
         },
     });
 
-    const mesh = new Mesh(gl, {
-        geometry,
-        program,
-    });
-
+    const mesh = new Mesh(gl, { geometry, program });
     mesh.scale.set(1, 2, 1);
     mesh.rotation.set(-1.5, 0, 0);
 

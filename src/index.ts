@@ -1,16 +1,16 @@
-import { Renderer, Camera, Transform, Program, Mesh, Plane, Orbit, TextureLoader } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Mesh, Box, Orbit } from 'ogl';
 
 const vertex = /* glsl */ `
-    attribute vec2 uv;
     attribute vec3 position;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
 
-    varying vec2 vUv;
+    varying vec3 vDir;
 
     void main() {
-        vUv = uv;
+        vDir = normalize(position);
+
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
@@ -18,12 +18,18 @@ const vertex = /* glsl */ `
 const fragment = /* glsl */ `
     precision highp float;
 
-    uniform sampler2D tMap;
+    // uniform type is samplerCube rather than sampler2D
+    uniform samplerCube tMap;
 
-    varying vec2 vUv;
+    varying vec3 vDir;
 
     void main() {
-        gl_FragColor = texture2D(tMap, vUv * 2.0);
+
+        // sample function is textureCube rather than texture2D
+        vec3 tex = textureCube(tMap, vDir).rgb;
+
+        gl_FragColor.rgb = tex;
+        gl_FragColor.a = 1.0;
     }
 `;
 
@@ -34,9 +40,14 @@ const fragment = /* glsl */ `
     gl.clearColor(1, 1, 1, 1);
 
     const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(-1, 0.5, 2);
+    camera.position.set(-2, 1, -3);
 
     const controls = new Orbit(camera);
+
+    /* document.querySelector('#dropdown')!.addEventListener('change', (event: Event) => {
+        const { value } = event.target as HTMLInputElement;
+        controls.zoomStyle = value;
+    }); */
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -47,47 +58,43 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    // Compressed textures use the KTXTexture (Khronos Texture) class
-    // For generation, use https://github.com/TimvanScherpenzeel/texture-compressor
-
-    // For a handy method that handles loading for you, use the TextureLoader.load() method.
-    // Either pass a `src` string to load it (regardless of support)
-    // const texture = TextureLoader.load(gl, {
-    //     src: 'assets/compressed/s3tc-m-y.ktx',
-    // });
-
-    // Or pass in an object of extension:src key-values, and the function will use the first
-    // supported format in the list - so order by preference!
-    const texture = TextureLoader.load(gl, {
-        src: {
-            s3tc: 'assets/compressed/s3tc-m-y.ktx',
-            etc: 'assets/compressed/etc-m-y.ktx',
-            pvrtc: 'assets/compressed/pvrtc-m-y.ktx',
-            jpg: 'assets/compressed/uv.jpg',
-        },
-        wrapS: gl.REPEAT,
-        wrapT: gl.REPEAT,
+    // Create an empty texture using the gl.TEXTURE_CUBE_MAP target
+    const texture = new Texture(gl, {
+        target: gl.TEXTURE_CUBE_MAP,
     });
-    // A console warning will show when no supported format was supplied
 
-    // `loaded` property is a promise resolved when the file is loaded and processed
-    // texture.loaded.then(() => console.log('loaded'));
+    loadImages();
+    async function loadImages() {
+        function loadImage(src: string): Promise<HTMLImageElement> {
+            return new Promise((res) => {
+                const img = new Image();
+                img.onload = () => res(img);
+                img.src = src;
+            });
+        }
 
-    // You can check which format was applied using the `ext` property
-    // document.body.querySelector('.Info')!.textContent += ` Supported format chosen: '${texture.ext}'.`;
+        // Must be in this order (it's a WebGL thing)
+        // gl.TEXTURE_CUBE_MAP_POSITIVE_X Right
+        // gl.TEXTURE_CUBE_MAP_NEGATIVE_X Left
+        // gl.TEXTURE_CUBE_MAP_POSITIVE_Y Top
+        // gl.TEXTURE_CUBE_MAP_NEGATIVE_Y Bottom
+        // gl.TEXTURE_CUBE_MAP_POSITIVE_Z Back
+        // gl.TEXTURE_CUBE_MAP_NEGATIVE_Z Front
 
-    // For direct use of the KTXTexture class, you first need to activate the extensions
-    // TextureLoader.getSupportedExtensions();
+        const images: HTMLImageElement[] = await Promise.all([
+            loadImage('assets/cube/posx.jpg'),
+            loadImage('assets/cube/negx.jpg'),
+            loadImage('assets/cube/posy.jpg'),
+            loadImage('assets/cube/negy.jpg'),
+            loadImage('assets/cube/posz.jpg'),
+            loadImage('assets/cube/negz.jpg'),
+        ]);
 
-    // Then create an empty texture
-    // const texture = new KTXTexture(gl);
+        // Once all are loaded, we can update the texture image, which will upload them
+        texture.image = images;
+    }
 
-    // Then, when the buffer has loaded, parse it using the parseBuffer method
-    // fetch(src)
-    //     .then(res => res.arrayBuffer())
-    //     .then(buffer => texture.parseBuffer(buffer));
-
-    const geometry = new Plane(gl);
+    const geometry = new Box(gl);
 
     const program = new Program(gl, {
         vertex,
@@ -98,6 +105,10 @@ const fragment = /* glsl */ `
         cullFace: false,
     });
 
+    const skybox = new Mesh(gl, { geometry, program });
+    skybox.setParent(scene);
+    skybox.scale.set(20);
+
     const mesh = new Mesh(gl, { geometry, program });
     mesh.setParent(scene);
 
@@ -106,6 +117,8 @@ const fragment = /* glsl */ `
         requestAnimationFrame(update);
 
         controls.update();
+
+        mesh.rotation.y += 0.003;
         renderer.render({ scene, camera });
     }
 }

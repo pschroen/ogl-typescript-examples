@@ -582,7 +582,7 @@ declare module 'ogl' {
         thetaLength: number;
         attributes: AttributeMap;
     };
-    
+
     export class Sphere extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<SphereOptions>);
     }
@@ -603,7 +603,7 @@ declare module 'ogl' {
         thetaLength: number;
         attributes: AttributeMap;
     };
-    
+
     export class Cylinder extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<CylinderOptions>);
     }
@@ -727,8 +727,17 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Texture.js | Source}
      */
+    export type CompressedImage = { isCompressedTexture?: boolean } & { data: Uint8Array; width: number; height: number }[];
+
+    export type ImageRepresentation =
+        | HTMLImageElement
+        | HTMLVideoElement
+        | HTMLImageElement[]
+        | ArrayBufferView
+        | CompressedImage
+
     export interface TextureOptions {
-        image: HTMLImageElement | HTMLVideoElement | HTMLImageElement[] | ArrayBufferView;
+        image: ImageRepresentation;
         target: number;
         type: number;
         format: number;
@@ -752,7 +761,7 @@ declare module 'ogl' {
         gl: OGLRenderingContext;
         id: number;
 
-        image: HTMLImageElement | HTMLVideoElement | HTMLImageElement[] | ArrayBufferView;
+        image: ImageRepresentation;
         target: number;
         type: number;
         format: number;
@@ -985,7 +994,7 @@ declare module 'ogl' {
         autoRotateSpeed: number;
         enableZoom: boolean;
         zoomSpeed: number;
-        zoomStyle: 'dolly' | string;
+        zoomStyle: 'dolly' | 'fov' | string;
         enablePan: boolean;
         panSpeed: number;
         minPolarAngle: number;
@@ -995,8 +1004,17 @@ declare module 'ogl' {
         minDistance: number;
         maxDistance: number;
     };
-    
+
     export class Orbit {
+        enabled: boolean;
+        target: Vec3;
+        zoomStyle: 'dolly' | 'fov' | string;
+
+        minDistance: number;
+        maxDistance: number;
+
+        offset: Vec3;
+
         constructor(object: Transform & { fov: number }, options?: Partial<OrbitOptions>);
 
         update(): void;
