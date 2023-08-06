@@ -1,17 +1,16 @@
-import { Renderer, Camera, Transform, Program, Mesh, Plane, Sphere, Box, Cylinder, Orbit } from 'ogl';
+import { Renderer, Camera, Transform, Program, Mesh, Plane, Orbit, TextureLoader } from 'ogl';
 
 const vertex = /* glsl */ `
+    attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 normal;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
 
-    varying vec3 vNormal;
+    varying vec2 vUv;
 
     void main() {
-        vNormal = normalize(normalMatrix * normal);
+        vUv = uv;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
@@ -19,13 +18,12 @@ const vertex = /* glsl */ `
 const fragment = /* glsl */ `
     precision highp float;
 
-    varying vec3 vNormal;
+    uniform sampler2D tMap;
+
+    varying vec2 vUv;
 
     void main() {
-        vec3 normal = normalize(vNormal);
-        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
-        gl_FragColor.rgb = vec3(0.2, 0.8, 1.0) + lighting * 0.1;
-        gl_FragColor.a = 1.0;
+        gl_FragColor = texture2D(tMap, vUv * 2.0);
     }
 `;
 
@@ -35,9 +33,9 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(0, 1, 7);
-    camera.lookAt([0, 0, 0]);
+    const camera = new Camera(gl, { fov: 45 });
+    camera.position.set(-1, 0.5, 2);
+
     const controls = new Orbit(camera);
 
     function resize() {
@@ -49,45 +47,65 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    const planeGeometry = new Plane(gl);
-    const sphereGeometry = new Sphere(gl);
-    const cubeGeometry = new Box(gl);
-    const cylinderGeometry = new Cylinder(gl);
+    // Compressed textures use the KTXTexture (Khronos Texture) class
+    // For generation, use https://github.com/TimvanScherpenzeel/texture-compressor
+
+    // For a handy method that handles loading for you, use the TextureLoader.load() method.
+    // Either pass a `src` string to load it (regardless of support)
+    // const texture = TextureLoader.load(gl, {
+    //     src: 'assets/compressed/s3tc-m-y.ktx',
+    // });
+
+    // Or pass in an object of extension:src key-values, and the function will use the first
+    // supported format in the list - so order by preference!
+    const texture = TextureLoader.load(gl, {
+        src: {
+            s3tc: 'assets/compressed/s3tc-m-y.ktx',
+            etc: 'assets/compressed/etc-m-y.ktx',
+            pvrtc: 'assets/compressed/pvrtc-m-y.ktx',
+            jpg: 'assets/compressed/uv.jpg',
+        },
+        wrapS: gl.REPEAT,
+        wrapT: gl.REPEAT,
+    });
+    // A console warning will show when no supported format was supplied
+
+    // `loaded` property is a promise resolved when the file is loaded and processed
+    // texture.loaded.then(() => console.log('loaded'));
+
+    // You can check which format was applied using the `ext` property
+    // document.body.querySelector('.Info')!.textContent += ` Supported format chosen: '${texture.ext}'.`;
+
+    // For direct use of the KTXTexture class, you first need to activate the extensions
+    // TextureLoader.getSupportedExtensions();
+
+    // Then create an empty texture
+    // const texture = new KTXTexture(gl);
+
+    // Then, when the buffer has loaded, parse it using the parseBuffer method
+    // fetch(src)
+    //     .then(res => res.arrayBuffer())
+    //     .then(buffer => texture.parseBuffer(buffer));
+
+    const geometry = new Plane(gl);
 
     const program = new Program(gl, {
         vertex,
         fragment,
-
-        // Don't cull faces so that plane is double sided - default is gl.BACK
+        uniforms: {
+            tMap: { value: texture },
+        },
         cullFace: false,
     });
 
-    const plane = new Mesh(gl, { geometry: planeGeometry, program });
-    plane.position.set(0, 1.3, 0);
-    plane.setParent(scene);
-
-    const sphere = new Mesh(gl, { geometry: sphereGeometry, program });
-    sphere.position.set(1.3, 0, 0);
-    sphere.setParent(scene);
-
-    const cube = new Mesh(gl, { geometry: cubeGeometry, program });
-    cube.position.set(0, -1.3, 0);
-    cube.setParent(scene);
-
-    const cylinder = new Mesh(gl, { geometry: cylinderGeometry, program });
-    cylinder.position.set(-1.3, 0, 0);
-    cylinder.setParent(scene);
+    const mesh = new Mesh(gl, { geometry, program });
+    mesh.setParent(scene);
 
     requestAnimationFrame(update);
     function update() {
         requestAnimationFrame(update);
+
         controls.update();
-
-        plane.rotation.y -= 0.02;
-        sphere.rotation.y -= 0.03;
-        cube.rotation.y -= 0.04;
-        cylinder.rotation.y -= 0.02;
-
         renderer.render({ scene, camera });
     }
 }

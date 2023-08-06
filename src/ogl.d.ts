@@ -748,6 +748,7 @@ declare module 'ogl' {
     }
 
     export class Texture {
+        ext: string;
         gl: OGLRenderingContext;
         id: number;
 
@@ -984,7 +985,7 @@ declare module 'ogl' {
         autoRotateSpeed: number;
         enableZoom: boolean;
         zoomSpeed: number;
-        zoomStyle: string;
+        zoomStyle: 'dolly' | string;
         enablePan: boolean;
         panSpeed: number;
         minPolarAngle: number;
