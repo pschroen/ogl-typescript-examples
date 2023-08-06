@@ -1,16 +1,17 @@
-import { Renderer, Camera, Transform, Texture, Program, Mesh, Box, Orbit } from 'ogl';
+import { Renderer, Camera, Transform, Program, Mesh, Sphere, Polyline, Orbit, Vec3, Color, Curve } from 'ogl';
 
 const vertex = /* glsl */ `
     attribute vec3 position;
+    attribute vec3 normal;
 
+    uniform mat3 normalMatrix;
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
 
-    varying vec3 vDir;
+    varying vec3 vNormal;
 
     void main() {
-        vDir = normalize(position);
-
+        vNormal = normalize(normalMatrix * normal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
@@ -18,17 +19,10 @@ const vertex = /* glsl */ `
 const fragment = /* glsl */ `
     precision highp float;
 
-    // uniform type is samplerCube rather than sampler2D
-    uniform samplerCube tMap;
-
-    varying vec3 vDir;
+    varying vec3 vNormal;
 
     void main() {
-
-        // sample function is textureCube rather than texture2D
-        vec3 tex = textureCube(tMap, vDir).rgb;
-
-        gl_FragColor.rgb = tex;
+        gl_FragColor.rgb = normalize(vNormal);
         gl_FragColor.a = 1.0;
     }
 `;
@@ -39,15 +33,13 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(-2, 1, -3);
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(0, 0, 5);
 
-    const controls = new Orbit(camera);
-
-    /* document.querySelector('#dropdown')!.addEventListener('change', (event: Event) => {
-        const { value } = event.target as HTMLInputElement;
-        controls.zoomStyle = value;
-    }); */
+    // Create controls and pass parameters
+    const controls = new Orbit(camera, {
+        target: new Vec3(0, 0, 0),
+    });
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -58,67 +50,67 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    // Create an empty texture using the gl.TEXTURE_CUBE_MAP target
-    const texture = new Texture(gl, {
-        target: gl.TEXTURE_CUBE_MAP,
-    });
-
-    loadImages();
-    async function loadImages() {
-        function loadImage(src: string): Promise<HTMLImageElement> {
-            return new Promise((res) => {
-                const img = new Image();
-                img.onload = () => res(img);
-                img.src = src;
-            });
-        }
-
-        // Must be in this order (it's a WebGL thing)
-        // gl.TEXTURE_CUBE_MAP_POSITIVE_X Right
-        // gl.TEXTURE_CUBE_MAP_NEGATIVE_X Left
-        // gl.TEXTURE_CUBE_MAP_POSITIVE_Y Top
-        // gl.TEXTURE_CUBE_MAP_NEGATIVE_Y Bottom
-        // gl.TEXTURE_CUBE_MAP_POSITIVE_Z Back
-        // gl.TEXTURE_CUBE_MAP_NEGATIVE_Z Front
-
-        const images: HTMLImageElement[] = await Promise.all([
-            loadImage('assets/cube/posx.jpg'),
-            loadImage('assets/cube/negx.jpg'),
-            loadImage('assets/cube/posy.jpg'),
-            loadImage('assets/cube/negy.jpg'),
-            loadImage('assets/cube/posz.jpg'),
-            loadImage('assets/cube/negz.jpg'),
-        ]);
-
-        // Once all are loaded, we can update the texture image, which will upload them
-        texture.image = images;
-    }
-
-    const geometry = new Box(gl);
+    const sphereGeometry = new Sphere(gl);
 
     const program = new Program(gl, {
         vertex,
         fragment,
-        uniforms: {
-            tMap: { value: texture },
-        },
+
+        // Don't cull faces so that plane is double sided - default is gl.BACK
         cullFace: false,
     });
 
-    const skybox = new Mesh(gl, { geometry, program });
-    skybox.setParent(scene);
-    skybox.scale.set(20);
+    const sphere = new Mesh(gl, { geometry: sphereGeometry, program });
+    sphere.setParent(scene);
 
-    const mesh = new Mesh(gl, { geometry, program });
-    mesh.setParent(scene);
+    const curve = new Curve({
+        points: [new Vec3(0, 0.5, 0), new Vec3(0, 1, 1), new Vec3(0, -1, 1), new Vec3(0, -0.5, 0)],
+        type: Curve.CUBICBEZIER,
+    });
+    const points = curve.getPoints(20);
+
+    curve.type = Curve.CATMULLROM;
+    const points2 = curve.getPoints(20);
+
+    curve.type = Curve.QUADRATICBEZIER;
+    const points3 = curve.getPoints(20);
+
+    const polyline = new Polyline(gl, {
+        points,
+        uniforms: {
+            uColor: { value: new Color('#f00') },
+            uThickness: { value: 3 },
+        },
+    });
+
+    const polyline2 = new Polyline(gl, {
+        points: points2,
+        uniforms: {
+            uColor: { value: new Color('#00f') },
+            uThickness: { value: 2 },
+        },
+    });
+
+    const polyline3 = new Polyline(gl, {
+        points: points3,
+        uniforms: {
+            uColor: { value: new Color('#0f0') },
+            uThickness: { value: 4 },
+        },
+    });
+
+    for (let i = 0; i <= 60; i++) {
+        const { geometry, program } = [polyline, polyline2, polyline3][i % 3];
+        const mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(sphere);
+        mesh.rotation.y = (i * Math.PI) / 60;
+    }
 
     requestAnimationFrame(update);
     function update() {
         requestAnimationFrame(update);
-
+        sphere.rotation.y -= 0.01;
         controls.update();
-
-        mesh.rotation.y += 0.003;
         renderer.render({ scene, camera });
     }
 }

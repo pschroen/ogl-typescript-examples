@@ -289,6 +289,31 @@ declare module 'ogl' {
     }
 
     /**
+     * A class for creating curves and methods for interpolation.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Curve.js | Source}
+     */
+    export interface CurveOptions {
+        points: Vec3[];
+        divisions: number;
+        type: 'catmullrom' | 'cubicbezier' | 'quadraticbezier';
+    }
+
+    export class Curve {
+        static CATMULLROM: 'catmullrom';
+        static CUBICBEZIER: 'cubicbezier';
+        static QUADRATICBEZIER: 'quadraticbezier';
+
+        points: Vec3[];
+        divisions: number;
+        type: 'catmullrom' | 'cubicbezier' | 'quadraticbezier';
+
+        constructor(options?: Partial<CurveOptions>);
+
+        getPoints(divisions?: number, a?: number, b?: number): Vec3[];
+    }
+
+    /**
      * The base class for most objects and provides a set of properties and methods for manipulating
      * objects in 3D space.
      *
@@ -720,6 +745,47 @@ declare module 'ogl' {
         addFrustumCull(): void;
 
         removeFrustumCull(): void;
+    }
+
+    /**
+     * A polyline mesh.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Polyline.js | Source}
+     */
+    export interface PolylineOptions {
+        points: Vec3[];
+        vertex: string;
+        fragment: string;
+        uniforms: Record<string, any>;
+        attributes: AttributeMap;
+    }
+
+    export class Polyline {
+        gl: OGLRenderingContext;
+        points: Vec3[];
+        count: number;
+
+        position: Float32Array;
+        prev: Float32Array;
+        next: Float32Array;
+
+        geometry: Geometry;
+
+        resolution: { value: Vec2 };
+        dpr: { value: number };
+        thickness: { value: number };
+        color: { value: Color };
+        miter: { value: number };
+
+        program: Program;
+
+        mesh: Mesh;
+
+        constructor(gl: OGLRenderingContext, options?: Partial<PolylineOptions>);
+
+        updateGeometry(): void;
+
+        resize(): void;
     }
 
     /**
