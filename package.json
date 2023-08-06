@@ -1,9 +1,24 @@
 {
+  "name": "ogl",
+  "version": "1.0.0",
+  "description": "OGL Vanilla TypeScript Template",
   "private": true,
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rollup -c",
+    "start": "servez public",
+    "dev": "concurrently --names \"ROLLUP,HTTP\" -c \"bgBlue.bold,bgGreen.bold\" \"rollup -c -w -m inline\" \"servez public\""
   },
   "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-typescript": "^11.1.2",
+    "concurrently": "^8.2.0",
+    "rollup": "^3.27.2",
+    "servez": "^2.0.0",
+    "tslib": "^2.6.1",
     "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "ogl": "^1.0.0"
   }
 }
