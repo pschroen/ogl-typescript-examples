@@ -1,16 +1,17 @@
-import { Renderer, Camera, Transform, Texture, Program, Mesh, Plane } from 'ogl';
+import { Renderer, Camera, Transform, Program, Mesh, Plane, Sphere, Box, Cylinder, Orbit } from 'ogl';
 
 const vertex = /* glsl */ `
-    attribute vec2 uv;
     attribute vec3 position;
+    attribute vec3 normal;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
 
-    varying vec2 vUv;
+    varying vec3 vNormal;
 
     void main() {
-        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
@@ -18,17 +19,12 @@ const vertex = /* glsl */ `
 const fragment = /* glsl */ `
     precision highp float;
 
-    uniform sampler2D tMap;
-    uniform sampler2D tMapA;
-    uniform float fSlide;
-
-    varying vec2 vUv;
+    varying vec3 vNormal;
 
     void main() {
-        vec3 tex = texture2D(tMap, vUv).rgb;
-        vec3 texA = texture2D(tMapA, vUv).rgb;
-
-        gl_FragColor.rgb = mix(tex, texA, step(fSlide, vUv.x)) + 0.1;
+        vec3 normal = normalize(vNormal);
+        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
+        gl_FragColor.rgb = vec3(0.2, 0.8, 1.0) + lighting * 0.1;
         gl_FragColor.a = 1.0;
     }
 `;
@@ -39,8 +35,10 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl);
-    camera.position.set(0, 0, 1);
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(0, 1, 7);
+    camera.lookAt([0, 0, 0]);
+    const controls = new Orbit(camera);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -51,49 +49,45 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    // By default, anisotropy is not active
-    const texture = new Texture(gl);
-
-    // Pass in number of anisotropic samples to activate
-    const textureAnisotropy = new Texture(gl, { anisotropy: 16 });
-
-    const img = new Image();
-    img.src = 'assets/grid.jpg';
-    img.onload = () => {
-        texture.image = img;
-        textureAnisotropy.image = img;
-    };
-
-    const geometry = new Plane(gl);
+    const planeGeometry = new Plane(gl);
+    const sphereGeometry = new Sphere(gl);
+    const cubeGeometry = new Box(gl);
+    const cylinderGeometry = new Cylinder(gl);
 
     const program = new Program(gl, {
         vertex,
         fragment,
-        uniforms: {
-            tMap: { value: texture },
-            tMapA: { value: textureAnisotropy },
-            fSlide: { value: 0.5 },
-        },
+
+        // Don't cull faces so that plane is double sided - default is gl.BACK
+        cullFace: false,
     });
 
-    const mesh = new Mesh(gl, {
-        geometry,
-        program,
-    });
+    const plane = new Mesh(gl, { geometry: planeGeometry, program });
+    plane.position.set(0, 1.3, 0);
+    plane.setParent(scene);
 
-    mesh.scale.set(1, 2, 1);
-    mesh.rotation.set(-1.5, 0, 0);
+    const sphere = new Mesh(gl, { geometry: sphereGeometry, program });
+    sphere.position.set(1.3, 0, 0);
+    sphere.setParent(scene);
 
-    mesh.setParent(scene);
+    const cube = new Mesh(gl, { geometry: cubeGeometry, program });
+    cube.position.set(0, -1.3, 0);
+    cube.setParent(scene);
 
-    gl.canvas.addEventListener('mousemove', (event) => {
-        const x = (2 * event.x) / gl.canvas.width;
-        program.uniforms.fSlide.value = x;
-    });
+    const cylinder = new Mesh(gl, { geometry: cylinderGeometry, program });
+    cylinder.position.set(-1.3, 0, 0);
+    cylinder.setParent(scene);
 
     requestAnimationFrame(update);
-    function update(t: DOMHighResTimeStamp) {
+    function update() {
         requestAnimationFrame(update);
+        controls.update();
+
+        plane.rotation.y -= 0.02;
+        sphere.rotation.y -= 0.03;
+        cube.rotation.y -= 0.04;
+        cylinder.rotation.y -= 0.02;
+
         renderer.render({ scene, camera });
     }
 }

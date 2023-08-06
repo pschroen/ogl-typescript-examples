@@ -1,6 +1,7 @@
 // Type definitions for ogl 1.0.0
 // Project: https://github.com/oframe/ogl
 // Definitions by: Patrick Schroen <https://github.com/pschroen>
+//                 Cody Bennett <https://github.com/CodyJasonBennett>
 //                 Xin Chen <https://github.com/nshen>
 // Definitions: https://github.com/oframe/ogl
 
@@ -416,7 +417,7 @@ declare module 'ogl' {
 
         type: 'perspective' | 'orthographic';
 
-        constructor(gl: OGLRenderingContext, parameters?: Partial<CameraOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<CameraOptions>);
 
         perspective(parameters?: Partial<CameraOptions>): this;
 
@@ -525,7 +526,7 @@ declare module 'ogl' {
     };
 
     export class Plane extends Geometry {
-        constructor(gl: OGLRenderingContext, parameters?: Partial<PlaneOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<PlaneOptions>);
 
         static buildPlane(
             position: Float32Array,
@@ -563,7 +564,48 @@ declare module 'ogl' {
     };
 
     export class Box extends Geometry {
-        constructor(gl: OGLRenderingContext, parameters?: Partial<BoxOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<BoxOptions>);
+    }
+
+    /**
+     * A sphere geometry.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Sphere.js | Source}
+     */
+    export type SphereOptions = {
+        radius: number;
+        widthSegments: number;
+        heightSegments: number;
+        phiStart: number;
+        phiLength: number;
+        thetaStart: number;
+        thetaLength: number;
+        attributes: AttributeMap;
+    };
+    
+    export class Sphere extends Geometry {
+        constructor(gl: OGLRenderingContext, options?: Partial<SphereOptions>);
+    }
+
+    /**
+     * A cylinder geometry.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Cylinder.js | Source}
+     */
+    export type CylinderOptions = {
+        radiusTop: number;
+        radiusBottom: number;
+        height: number;
+        radialSegments: number;
+        heightSegments: number;
+        openEnded: boolean;
+        thetaStart: number;
+        thetaLength: number;
+        attributes: AttributeMap;
+    };
+    
+    export class Cylinder extends Geometry {
+        constructor(gl: OGLRenderingContext, options?: Partial<CylinderOptions>);
     }
 
     /**
@@ -576,7 +618,7 @@ declare module 'ogl' {
         fragment: string;
         uniforms: Record<string, any>;
         transparent: boolean;
-        cullFace: GLenum;
+        cullFace: GLenum | false;
         frontFace: GLenum;
         depthTest: boolean;
         depthWrite: boolean;
@@ -612,7 +654,7 @@ declare module 'ogl' {
         attributeLocations: Map<any, any>;
         attributeOrder: string;
 
-        constructor(gl: OGLRenderingContext, parameters?: Partial<ProgramOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<ProgramOptions>);
 
         setBlendFunc(src: GLenum, dst: GLenum, srcAlpha: GLenum, dstAlpha: GLenum): void;
 
@@ -658,7 +700,7 @@ declare module 'ogl' {
         beforeRenderCallbacks: Function[];
         afterRenderCallbacks: Function[];
 
-        constructor(gl: OGLRenderingContext, parameters?: Partial<MeshOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<MeshOptions>);
 
         onBeforeRender(f: Function): this;
 
@@ -743,7 +785,7 @@ declare module 'ogl' {
 
         loaded: Promise<Texture>; // Set from texture loader
 
-        constructor(gl: OGLRenderingContext, parameters?: Partial<TextureOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<TextureOptions>);
 
         bind(): void;
 
@@ -756,7 +798,7 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/TextureLoader.js | Source}
      */
     export class TextureLoader {
-        static load(gl: OGLRenderingContext, parameters?: object): Texture;
+        static load(gl: OGLRenderingContext, options?: object): Texture;
 
         static getSupportedExtensions(gl: OGLRenderingContext): string[];
 
@@ -807,7 +849,7 @@ declare module 'ogl' {
         textures: Texture[];
         texture: Texture;
 
-        constructor(gl: OGLRenderingContext, parameters?: Partial<RenderTargetOptions>);
+        constructor(gl: OGLRenderingContext, options?: Partial<RenderTargetOptions>);
 
         setSize(width: number, height: number): void;
     }
@@ -882,7 +924,7 @@ declare module 'ogl' {
         deleteVertexArray: Function;
         drawBuffers: Function;
 
-        constructor(parameters?: Partial<RendererOptions>);
+        constructor(options?: Partial<RendererOptions>);
 
         setSize(width: number, height: number): void;
 
@@ -921,5 +963,45 @@ declare module 'ogl' {
         getRenderList(parameters: object): void;
 
         render(parameters: object): void;
+    }
+
+    /**
+     * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
+     * additions and subtractions.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
+     * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
+     */
+    export type OrbitOptions = {
+        element: HTMLElement;
+        enabled: boolean;
+        target: Vec3;
+        ease: number;
+        inertia: number;
+        enableRotate: boolean;
+        rotateSpeed: number;
+        autoRotate: boolean;
+        autoRotateSpeed: number;
+        enableZoom: boolean;
+        zoomSpeed: number;
+        zoomStyle: string;
+        enablePan: boolean;
+        panSpeed: number;
+        minPolarAngle: number;
+        maxPolarAngle: number;
+        minAzimuthAngle: number;
+        maxAzimuthAngle: number;
+        minDistance: number;
+        maxDistance: number;
+    };
+    
+    export class Orbit {
+        constructor(object: Transform & { fov: number }, options?: Partial<OrbitOptions>);
+
+        update(): void;
+
+        forcePosition(): void;
+
+        remove(): void;
     }
 }
