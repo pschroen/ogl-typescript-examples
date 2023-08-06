@@ -464,10 +464,6 @@ declare module 'ogl' {
 
     export type AttributeMap = Record<string, Partial<Attribute>>;
 
-    export type GeometryOptions = {
-        attributes: AttributeMap;
-    };
-
     export class Geometry {
         gl: OGLRenderingContext;
         attributes: AttributeMap;
@@ -481,7 +477,7 @@ declare module 'ogl' {
         instancedCount: number;
         glState: RenderState;
 
-        constructor(gl: OGLRenderingContext, parameters?: Partial<GeometryOptions>);
+        constructor(gl: OGLRenderingContext, attributes?: AttributeMap);
 
         addAttribute(key: string, attr: Partial<Attribute>): void;
 
