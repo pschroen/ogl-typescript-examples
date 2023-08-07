@@ -1,78 +1,52 @@
-import { Renderer, Camera, Transform, Texture, Program, Color, Geometry, Mesh } from 'ogl';
+import { Renderer, Camera, Orbit, Transform, Program, Torus, Mesh, Color } from 'ogl';
+
+const params = {
+    backgroundColor: new Color('#B6D8F2'),
+    baseColor: new Color('#B6D8F2'),
+    fresnelColor: new Color('#F7F6CF'),
+    fresnelFactor: 1.5,
+};
 
 const vertex = /* glsl */ `
-    attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 offset;
-    attribute vec3 random;
+    attribute vec3 normal;
 
+    uniform mat4 modelMatrix;
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
-    uniform float uTime;
+    uniform vec3 cameraPosition;
 
-    varying vec2 vUv;
-    varying vec4 vMVPos;
-    varying vec3 vPos;
-
-    void rotate2d(inout vec2 v, float a){
-        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
-        v = m * v;
-    }
+    varying vec3 vWorldNormal;
+    varying vec3 vViewDirection;
 
     void main() {
-        vUv = uv;
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldNormal = normalize(modelMatrix * vec4(normal, 0.0)).xyz;
+        vViewDirection = normalize(cameraPosition - worldPosition.xyz);
 
-        // copy position so that we can modify the instances
-        vec3 pos = position;
-
-        // scale first
-        pos *= 0.8 + random.y * 0.3;
-
-        // pass scaled object position to fragment to add low-lying fog
-        vPos = pos;
-
-        // rotate around Y axis
-        rotate2d(pos.xz, random.x * 6.28);
-
-        // add position offset
-        pos += offset;
-
-        // add some hilliness to vary the height
-        pos.y += sin(pos.x * 0.5) * sin(pos.z * 0.5) * 0.5;
-
-        // pass model view position to fragment shader to get distance from camera
-        vMVPos = modelViewMatrix * vec4(pos, 1.0);
-
-        gl_Position = projectionMatrix * vMVPos;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
 
 const fragment = /* glsl */ `
     precision highp float;
 
-    uniform float uTime;
-    uniform sampler2D tMap;
-    uniform vec3 uFogColor;
-    uniform float uFogNear;
-    uniform float uFogFar;
+    uniform vec3 uBaseColor;
+    uniform vec3 uFresnelColor;
+    uniform float uFresnelPower;
 
-    varying vec2 vUv;
-    varying vec4 vMVPos;
-    varying vec3 vPos;
+    varying vec3 vWorldNormal;
+    varying vec3 vViewDirection;
 
     void main() {
-        vec3 tex = texture2D(tMap, vUv).rgb;
+        float fresnelFactor = abs(dot(vViewDirection, vWorldNormal));
+        float inversefresnelFactor = 1.0 - fresnelFactor;
 
-        // add the fog relative to the distance from the camera
-        float dist = length(vMVPos);
-        float fog = smoothstep(uFogNear, uFogFar, dist);
-        tex = mix(tex, uFogColor, fog);
+        // Shaping function
+        fresnelFactor = pow(fresnelFactor, uFresnelPower);
+        inversefresnelFactor = pow(inversefresnelFactor, uFresnelPower);
 
-        // add some fog along the height of each tree to simulate low-lying fog
-        tex = mix(tex, uFogColor, smoothstep(1.0, 0.0, vPos.y));
-
-        gl_FragColor.rgb = tex;
-        gl_FragColor.a = 1.0;
+        gl_FragColor = vec4(fresnelFactor * uBaseColor + inversefresnelFactor * uFresnelColor, 1.0);
     }
 `;
 
@@ -80,10 +54,10 @@ const fragment = /* glsl */ `
     const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
-    gl.clearColor(1, 1, 1, 1);
+    gl.clearColor(...params.backgroundColor as unknown as [red: number, green: number, blue: number], 1);
 
-    const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(0, 4, 8);
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(0, 1, 7);
     camera.lookAt([0, 0, 0]);
 
     function resize() {
@@ -94,64 +68,37 @@ const fragment = /* glsl */ `
     resize();
 
     const scene = new Transform();
+    const controls = new Orbit(camera);
 
-    const texture = new Texture(gl);
-    const img = new Image();
-    img.onload = () => (texture.image = img);
-    img.src = 'assets/forest.jpg';
+    const uniforms = {
+        uBaseColor: { value: params.baseColor },
+        uFresnelColor: { value: params.fresnelColor },
+        uFresnelPower: { value: params.fresnelFactor },
+    };
 
     const program = new Program(gl, {
         vertex: vertex,
         fragment: fragment,
-        uniforms: {
-            uTime: { value: 0 },
-            tMap: { value: texture },
-
-            // Pass relevant uniforms for fog
-            uFogColor: { value: new Color('#ffffff') },
-            uFogNear: { value: 2 },
-            uFogFar: { value: 15 },
-        },
+        uniforms: uniforms,
     });
 
-    let mesh: Mesh;
-    loadModel();
-    async function loadModel() {
-        const data = await (await fetch(`assets/forest.json`)).json();
+    const torusGeometry = new Torus(gl, {
+        radius: 1,
+        tube: 0.4,
+        radialSegments: 32,
+        tubularSegments: 64,
+    });
 
-        const size = 8;
-        const num = size * size;
-
-        let offset = new Float32Array(num * 3);
-        let random = new Float32Array(num * 3);
-        for (let i = 0; i < num; i++) {
-            // Layout in a grid
-            offset.set([((i % size) - size * 0.5) * 2, 0, (Math.floor(i / size) - size * 0.5) * 2], i * 3);
-
-            random.set([Math.random(), Math.random(), Math.random()], i * 3);
-        }
-
-        const geometry = new Geometry(gl, {
-            position: { size: 3, data: new Float32Array(data.position) },
-            uv: { size: 2, data: new Float32Array(data.uv) },
-            offset: { instanced: true, size: 3, data: offset },
-            random: { instanced: true, size: 3, data: random },
-        });
-
-        mesh = new Mesh(gl, { geometry, program });
-        mesh.setParent(scene);
-    }
+    const torus = new Mesh(gl, { geometry: torusGeometry, program });
+    torus.setParent(scene);
 
     requestAnimationFrame(update);
-    function update(t: DOMHighResTimeStamp) {
+    function update() {
         requestAnimationFrame(update);
 
-        if (mesh) {
-            mesh.rotation.y += 0.003;
-            mesh.position.z = Math.sin(t * 0.0004) * 3.0;
-        }
+        torus.rotation.x += 0.01;
 
-        program.uniforms.uTime.value = t * 0.001;
+        controls.update();
         renderer.render({ scene, camera });
     }
 }

@@ -634,6 +634,24 @@ declare module 'ogl' {
     }
 
     /**
+     * A torus geometry.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Torus.js | Source}
+     */
+    export interface TorusOptions {
+        radius: number;
+        tube: number;
+        radialSegments: number;
+        tubularSegments: number;
+        arc: number;
+        attributes: AttributeMap;
+    }
+
+    export class Torus extends Geometry {
+        constructor(gl: OGLRenderingContext, options?: Partial<TorusOptions>);
+    }
+
+    /**
      * A WebGL program.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Program.js | Source}
