@@ -1,76 +1,80 @@
-import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh, Vec3, Orbit } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Color, Geometry, Mesh } from 'ogl';
 
-// When we use standard derivatives (dFdx & dFdy functions),
-// which are necessary for this effect, WebGL1 requires the
-// GL_OES_standard_derivatives extension, and WebGL2 complains
-// about the extension's existence. So unfortunately we're
-// forced to create a 300 es GLSL shader for WebGL2, and a 100 es
-// GLSL shader for WebGL1. There are only slight syntax changes.
 const vertex = /* glsl */ `
+    attribute vec2 uv;
     attribute vec3 position;
+    attribute vec3 offset;
+    attribute vec3 random;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
+    uniform float uTime;
 
+    varying vec2 vUv;
     varying vec4 vMVPos;
+    varying vec3 vPos;
+
+    void rotate2d(inout vec2 v, float a){
+        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
+        v = m * v;
+    }
 
     void main() {
-        vMVPos = modelViewMatrix * vec4(position, 1.0);
+        vUv = uv;
+
+        // copy position so that we can modify the instances
+        vec3 pos = position;
+
+        // scale first
+        pos *= 0.8 + random.y * 0.3;
+
+        // pass scaled object position to fragment to add low-lying fog
+        vPos = pos;
+
+        // rotate around Y axis
+        rotate2d(pos.xz, random.x * 6.28);
+
+        // add position offset
+        pos += offset;
+
+        // add some hilliness to vary the height
+        pos.y += sin(pos.x * 0.5) * sin(pos.z * 0.5) * 0.5;
+
+        // pass model view position to fragment shader to get distance from camera
+        vMVPos = modelViewMatrix * vec4(pos, 1.0);
+
         gl_Position = projectionMatrix * vMVPos;
     }
 `;
 
 const fragment = /* glsl */ `
+    precision highp float;
+
+    uniform float uTime;
     uniform sampler2D tMap;
+    uniform vec3 uFogColor;
+    uniform float uFogNear;
+    uniform float uFogFar;
 
+    varying vec2 vUv;
     varying vec4 vMVPos;
-
-    vec3 normals(vec3 pos) {
-        vec3 fdx = dFdx(pos);
-        vec3 fdy = dFdy(pos);
-        return normalize(cross(fdx, fdy));
-    }
-
-    vec2 matcap(vec3 eye, vec3 normal) {
-        vec3 reflected = reflect(eye, normal);
-        float m = 2.8284271247461903 * sqrt(reflected.z + 1.0);
-        return reflected.xy / m + 0.5;
-    }
+    varying vec3 vPos;
 
     void main() {
-        vec3 normal = normals(vMVPos.xyz);
+        vec3 tex = texture2D(tMap, vUv).rgb;
 
-        // We're using the matcap to add some shininess to the model
-        float mat = texture2D(tMap, matcap(normalize(vMVPos.xyz), normal)).g;
+        // add the fog relative to the distance from the camera
+        float dist = length(vMVPos);
+        float fog = smoothstep(uFogNear, uFogFar, dist);
+        tex = mix(tex, uFogColor, fog);
 
-        gl_FragColor.rgb = normal + mat;
+        // add some fog along the height of each tree to simulate low-lying fog
+        tex = mix(tex, uFogColor, smoothstep(1.0, 0.0, vPos.y));
+
+        gl_FragColor.rgb = tex;
         gl_FragColor.a = 1.0;
     }
 `;
-
-const vertex100 =
-    /* glsl */ `
-` + vertex;
-
-const fragment100 =
-    /* glsl */ `#extension GL_OES_standard_derivatives : enable
-    precision highp float;
-` + fragment;
-
-const vertex300 =
-    /* glsl */ `#version 300 es
-    #define attribute in
-    #define varying out
-` + vertex;
-
-const fragment300 =
-    /* glsl */ `#version 300 es
-    precision highp float;
-    #define varying in
-    #define texture2D texture
-    #define gl_FragColor FragColor
-    out vec4 FragColor;
-` + fragment;
 
 {
     const renderer = new Renderer({ dpr: 2 });
@@ -79,11 +83,8 @@ const fragment300 =
     gl.clearColor(1, 1, 1, 1);
 
     const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(2, 1, 2);
-
-    const controls = new Orbit(camera, {
-        target: new Vec3(0, 0.2, 0),
-    });
+    camera.position.set(0, 4, 8);
+    camera.lookAt([0, 0, 0]);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -97,38 +98,60 @@ const fragment300 =
     const texture = new Texture(gl);
     const img = new Image();
     img.onload = () => (texture.image = img);
-    img.src = 'assets/matcap.jpg';
+    img.src = 'assets/forest.jpg';
 
     const program = new Program(gl, {
-        vertex: renderer.isWebgl2 ? vertex300 : vertex100,
-        fragment: renderer.isWebgl2 ? fragment300 : fragment100,
+        vertex: vertex,
+        fragment: fragment,
         uniforms: {
+            uTime: { value: 0 },
             tMap: { value: texture },
+
+            // Pass relevant uniforms for fog
+            uFogColor: { value: new Color('#ffffff') },
+            uFogNear: { value: 2 },
+            uFogFar: { value: 15 },
         },
-        cullFace: false,
     });
 
+    let mesh: Mesh;
     loadModel();
     async function loadModel() {
-        const data = await (await fetch(`assets/octopus.json`)).json();
+        const data = await (await fetch(`assets/forest.json`)).json();
 
-        // If you can generate the flat-shaded normals with attributes, it would
-        // be more efficient. However if your mesh is dynamic, indexed, or you're
-        // updating the vertices in the shader, we can still calculate the normals
-        // in the shader - all we need is the position.
+        const size = 8;
+        const num = size * size;
+
+        let offset = new Float32Array(num * 3);
+        let random = new Float32Array(num * 3);
+        for (let i = 0; i < num; i++) {
+            // Layout in a grid
+            offset.set([((i % size) - size * 0.5) * 2, 0, (Math.floor(i / size) - size * 0.5) * 2], i * 3);
+
+            random.set([Math.random(), Math.random(), Math.random()], i * 3);
+        }
+
         const geometry = new Geometry(gl, {
             position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            offset: { instanced: true, size: 3, data: offset },
+            random: { instanced: true, size: 3, data: random },
         });
 
-        let mesh = new Mesh(gl, { geometry, program });
+        mesh = new Mesh(gl, { geometry, program });
         mesh.setParent(scene);
     }
 
     requestAnimationFrame(update);
-    function update() {
+    function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        controls.update();
+        if (mesh) {
+            mesh.rotation.y += 0.003;
+            mesh.position.z = Math.sin(t * 0.0004) * 3.0;
+        }
+
+        program.uniforms.uTime.value = t * 0.001;
         renderer.render({ scene, camera });
     }
 }
