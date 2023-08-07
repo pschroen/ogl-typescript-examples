@@ -1,45 +1,89 @@
-import { Renderer, Camera, Transform, Geometry, Program, Mesh } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh, Vec3, Orbit } from 'ogl';
 
+// When we use standard derivatives (dFdx & dFdy functions),
+// which are necessary for this effect, WebGL1 requires the
+// GL_OES_standard_derivatives extension, and WebGL2 complains
+// about the extension's existence. So unfortunately we're
+// forced to create a 300 es GLSL shader for WebGL2, and a 100 es
+// GLSL shader for WebGL1. There are only slight syntax changes.
 const vertex = /* glsl */ `
-    attribute vec2 uv;
     attribute vec3 position;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
 
-    varying vec2 vUv;
+    varying vec4 vMVPos;
 
     void main() {
-        vUv = uv;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-
-        // gl_PointSize only applicable for gl.POINTS draw mode
-        gl_PointSize = 5.0;
+        vMVPos = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * vMVPos;
     }
 `;
 
 const fragment = /* glsl */ `
-    precision highp float;
+    uniform sampler2D tMap;
 
-    uniform float uTime;
+    varying vec4 vMVPos;
 
-    varying vec2 vUv;
+    vec3 normals(vec3 pos) {
+        vec3 fdx = dFdx(pos);
+        vec3 fdy = dFdy(pos);
+        return normalize(cross(fdx, fdy));
+    }
+
+    vec2 matcap(vec3 eye, vec3 normal) {
+        vec3 reflected = reflect(eye, normal);
+        float m = 2.8284271247461903 * sqrt(reflected.z + 1.0);
+        return reflected.xy / m + 0.5;
+    }
 
     void main() {
-        gl_FragColor.rgb = 0.5 + 0.3 * sin(vUv.yxx + uTime) + vec3(0.2, 0.0, 0.1);
+        vec3 normal = normals(vMVPos.xyz);
+
+        // We're using the matcap to add some shininess to the model
+        float mat = texture2D(tMap, matcap(normalize(vMVPos.xyz), normal)).g;
+
+        gl_FragColor.rgb = normal + mat;
         gl_FragColor.a = 1.0;
     }
 `;
 
+const vertex100 =
+    /* glsl */ `
+` + vertex;
+
+const fragment100 =
+    /* glsl */ `#extension GL_OES_standard_derivatives : enable
+    precision highp float;
+` + fragment;
+
+const vertex300 =
+    /* glsl */ `#version 300 es
+    #define attribute in
+    #define varying out
+` + vertex;
+
+const fragment300 =
+    /* glsl */ `#version 300 es
+    precision highp float;
+    #define varying in
+    #define texture2D texture
+    #define gl_FragColor FragColor
+    out vec4 FragColor;
+` + fragment;
+
 {
-    const renderer = new Renderer();
+    const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 15 });
-    camera.position.z = 15;
+    const camera = new Camera(gl, { fov: 45 });
+    camera.position.set(2, 1, 2);
+
+    const controls = new Orbit(camera, {
+        target: new Vec3(0, 0.2, 0),
+    });
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -50,69 +94,41 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    // Geometry is an indexed square, comprised of 4 vertices.
-    const geometry = new Geometry(gl, {
-        position: { size: 3, data: new Float32Array([-0.5, 0.5, 0, -0.5, -0.5, 0, 0.5, 0.5, 0, 0.5, -0.5, 0]) },
-        uv: { size: 2, data: new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]) },
-        index: { data: new Uint16Array([0, 1, 2, 1, 3, 2]) },
-    });
+    const texture = new Texture(gl);
+    const img = new Image();
+    img.onload = () => (texture.image = img);
+    img.src = 'assets/matcap.jpg';
 
     const program = new Program(gl, {
-        vertex,
-        fragment,
+        vertex: renderer.isWebgl2 ? vertex300 : vertex100,
+        fragment: renderer.isWebgl2 ? fragment300 : fragment100,
         uniforms: {
-            uTime: { value: 0 },
+            tMap: { value: texture },
         },
+        cullFace: false,
     });
 
-    // gl.POINTS: draws 4 points (actually draws 6, with 2 duplicates due to the geometry indices)
-    const points = new Mesh(gl, { mode: gl.POINTS, geometry, program });
-    points.setParent(scene);
-    points.position.set(-1, 1, 0);
+    loadModel();
+    async function loadModel() {
+        const data = await (await fetch(`assets/octopus.json`)).json();
 
-    // gl.LINES: draws 3 lines - a line between each pair of vertices.
-    // Ideal use for separated lines.
-    const lineStrip = new Mesh(gl, { mode: gl.LINES, geometry, program });
-    lineStrip.setParent(scene);
-    lineStrip.position.set(1, 1, 0);
+        // If you can generate the flat-shaded normals with attributes, it would
+        // be more efficient. However if your mesh is dynamic, indexed, or you're
+        // updating the vertices in the shader, we can still calculate the normals
+        // in the shader - all we need is the position.
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+        });
 
-    // gl.LINE_LOOP: draws 6 lines (1 unavoidable overlap for squares).
-    const lineLoop = new Mesh(gl, { mode: gl.LINE_LOOP, geometry, program });
-    lineLoop.setParent(scene);
-    lineLoop.position.set(-1, -1, 0);
-
-    // gl.TRIANGLES: draws a triangle between each set of 3 vertices.
-    // Used as the default draw mode, so doesn't really need to be passed in as a param.
-    const triangles = new Mesh(gl, { mode: gl.TRIANGLES, geometry, program });
-    triangles.setParent(scene);
-    triangles.position.set(1, -1, 0);
-
-    // OTHER MODES NOT FEATURED:
-    // gl.LINE_STRIP: Draws a straight line to the next vertex. Does not connect first and last vertices like gl.LINE_LOOP,
-
-    // gl.TRIANGLE_STRIP: draws triangles in a criss-cross pattern. Ideal for ribbons.
-    // For example, in order to draw a rectangle, only 4 vertices needed (unlike 6 with gl.TRIANGLES).
-    // The 4 vertices should follow the below pattern.
-    //
-    // 0--2
-    // | /|
-    // |/ |
-    // 1--3
-
-    // gl.TRIANGLE_FAN: draws triangles in a fan pattern. Ideal for small polygons.
-    // For the rectangle example, similarly to gl.TRIANGLE_STRIP, only 4 vertices needed. However the
-    // pattern differs as per below.
-    //
-    // 1--2
-    // | /|
-    // |/ |
-    // 0--3
+        let mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(scene);
+    }
 
     requestAnimationFrame(update);
-    function update(t: DOMHighResTimeStamp) {
+    function update() {
         requestAnimationFrame(update);
 
-        program.uniforms.uTime.value = t * 0.001;
+        controls.update();
         renderer.render({ scene, camera });
     }
 }
