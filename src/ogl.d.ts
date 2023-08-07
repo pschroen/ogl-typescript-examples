@@ -265,7 +265,7 @@ declare module 'ogl' {
 
         getMaxScaleOnAxis(): Vec3;
 
-        lookAt(eye: Vec3, target: Vec3, up: Vec3): this;
+        lookAt(eye: Vec3, target: Vec3 | [number, number, number], up: Vec3): this;
 
         determinant(): number;
 
@@ -412,7 +412,7 @@ declare module 'ogl' {
 
         decompose(): void;
 
-        lookAt(target: number[], invert?: boolean): void;
+        lookAt(target: Vec3 | [number, number, number], invert?: boolean): void;
     }
 
     /**
@@ -458,7 +458,7 @@ declare module 'ogl' {
 
         updateMatrixWorld(): this;
 
-        lookAt(target: number[]): this;
+        lookAt(target: Vec3 | [number, number, number]): this;
 
         project(v: Vec3): this;
 
