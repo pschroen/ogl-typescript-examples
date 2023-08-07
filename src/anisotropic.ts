@@ -90,6 +90,7 @@ const fragment = /* glsl */ `
     requestAnimationFrame(update);
     function update() {
         requestAnimationFrame(update);
+
         renderer.render({ scene, camera });
     }
 }

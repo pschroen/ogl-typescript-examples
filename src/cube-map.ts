@@ -44,10 +44,10 @@ const fragment = /* glsl */ `
 
     const controls = new Orbit(camera);
 
-    /* document.querySelector('#dropdown')!.addEventListener('change', (event: Event) => {
+    document.querySelector('#dropdown')!.addEventListener('change', (event: Event) => {
         const { value } = event.target as HTMLInputElement;
         controls.zoomStyle = value;
-    }); */
+    });
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -116,9 +116,9 @@ const fragment = /* glsl */ `
     function update() {
         requestAnimationFrame(update);
 
-        controls.update();
-
         mesh.rotation.y += 0.003;
+
+        controls.update();
         renderer.render({ scene, camera });
     }
 }

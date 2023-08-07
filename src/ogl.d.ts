@@ -469,7 +469,7 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
      */
     export type Attribute = {
-        data: Float32Array;
+        data: ArrayLike<number> | ArrayBufferView;
         size: number;
         instanced?: null | number | boolean;
         type: GLenum;

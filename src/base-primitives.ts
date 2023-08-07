@@ -81,13 +81,13 @@ const fragment = /* glsl */ `
     requestAnimationFrame(update);
     function update() {
         requestAnimationFrame(update);
-        controls.update();
 
         plane.rotation.y -= 0.02;
         sphere.rotation.y -= 0.03;
         cube.rotation.y -= 0.04;
         cylinder.rotation.y -= 0.02;
 
+        controls.update();
         renderer.render({ scene, camera });
     }
 }
