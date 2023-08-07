@@ -400,7 +400,7 @@ declare module 'ogl' {
          */
         updateMatrix(): void;
 
-        traverse(callback: Function): void;
+        traverse(callback: (node: Transform) => boolean | void): void;
 
         decompose(): void;
 
@@ -458,7 +458,7 @@ declare module 'ogl' {
 
         updateFrustum(): void;
 
-        frustumIntersectsMesh(node: any, worldMatrix: Mat4): boolean;
+        frustumIntersectsMesh(node: any, worldMatrix?: Mat4): boolean;
 
         frustumIntersectsSphere(center: Vec3, radius: number): boolean;
     }
@@ -686,7 +686,7 @@ declare module 'ogl' {
         id: number;
 
         transparent: boolean;
-        cullFace: GLenum;
+        cullFace: GLenum | false;
         frontFace: GLenum;
         depthTest: boolean;
         depthWrite: boolean;
@@ -708,6 +708,15 @@ declare module 'ogl' {
         use(parameters?: object): void;
 
         remove(): void;
+    }
+
+    /**
+     * A normal program.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/NormalProgram.js | Source}
+     */
+    export class NormalProgram extends Program {
+        constructor(gl: OGLRenderingContext, options?: Partial<ProgramOptions>);
     }
 
     /**
@@ -975,21 +984,21 @@ declare module 'ogl' {
     } & (WebGL2RenderingContext | WebGLRenderingContext);
 
     export type RenderState = {
-        blendFunc?: {src: GLenum; dst: GLenum; srcAlpha?: any; dstAlpha?: any};
-        blendEquation?: {modeRGB: GLenum; modeAlpha?: any};
-        cullFace?: number;
-        frontFace?: number;
-        depthMask?: boolean;
-        depthFunc?: number;
-        premultiplyAlpha?: boolean;
-        flipY?: boolean;
-        unpackAlignment?: number;
-        viewport?: {width: number | null; height: number | null};
-        textureUnits?: Array<number>;
-        activeTextureUnit?: number;
-        framebuffer?: any;
-        boundBuffer?: any;
-        uniformLocations?: Map<number, WebGLUniformLocation>;
+        blendFunc: {src: GLenum; dst: GLenum; srcAlpha?: any; dstAlpha?: any};
+        blendEquation: {modeRGB: GLenum; modeAlpha?: any};
+        cullFace: GLenum | false;
+        frontFace: number;
+        depthMask: boolean;
+        depthFunc: number;
+        premultiplyAlpha: boolean;
+        flipY: boolean;
+        unpackAlignment: number;
+        viewport: {width: number | null; height: number | null};
+        textureUnits: Array<number>;
+        activeTextureUnit: number;
+        framebuffer: any;
+        boundBuffer: any;
+        uniformLocations: Map<number, WebGLUniformLocation>;
     };
 
     export type RenderExtensions = Record<string, any>;
