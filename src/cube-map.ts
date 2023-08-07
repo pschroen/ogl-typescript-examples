@@ -44,8 +44,8 @@ const fragment = /* glsl */ `
 
     const controls = new Orbit(camera);
 
-    document.querySelector('#dropdown')!.addEventListener('change', (event: Event) => {
-        const { value } = event.target as HTMLInputElement;
+    document.querySelector('#dropdown')!.addEventListener('change', (e: Event) => {
+        const { value } = e.target as HTMLInputElement;
         controls.zoomStyle = value;
     });
 

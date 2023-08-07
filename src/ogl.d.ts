@@ -104,13 +104,21 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec3.js | Source}
      */
     export class Vec3 extends Array<number> {
-        x: number;
-        y: number;
-        z: number;
+        constructor(x?: number | Vec3, y?: number, z?: number);
 
-        constructor(x?: number, y?: number, z?: number);
+        get x(): number;
 
-        set(x: number, y?: number, z?: number): this;
+        get y(): number;
+
+        get z(): number;
+
+        set x(v: number);
+
+        set y(v: number);
+
+        set z(v: number);
+
+        set(x: number | Vec3, y?: number, z?: number): this;
 
         copy(v: Vec3): this;
 
@@ -118,25 +126,25 @@ declare module 'ogl' {
 
         sub(va: Vec3, vb?: Vec3): this;
 
-        multiply(v: Vec3): this;
+        multiply(v: Vec3 | number): this;
 
-        divide(v: Vec3): this;
+        divide(v: Vec3 | number): this;
 
         inverse(v?: Vec3): this;
 
         len(): number;
 
-        distance(v: Vec3): number;
+        distance(v?: Vec3): number;
 
         squaredLen(): number;
 
-        squaredDistance(v: Vec3): number;
+        squaredDistance(v?: Vec3): number;
 
         negate(v?: Vec3): this;
 
-        cross(va: Vec3, vb: Vec3): this;
+        cross(va: Vec3, vb?: Vec3): this;
 
-        scale(v: Vec3): this;
+        scale(v: number): this;
 
         normalize(): this;
 
@@ -237,9 +245,9 @@ declare module 'ogl' {
 
         copy(m: Mat4): this;
 
-        fromPerspective(parameters?: object): this;
+        fromPerspective(options?: object): this;
 
-        fromOrthogonal(parameters: object): this;
+        fromOrthogonal(options: object): this;
 
         fromQuaternion(q: Quat): this;
 
@@ -289,7 +297,7 @@ declare module 'ogl' {
     }
 
     /**
-     * A class for creating curves and methods for interpolation.
+     * A class for creating curves.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Curve.js | Source}
      */
@@ -371,10 +379,10 @@ declare module 'ogl' {
 
         /**
          * Set the parent.
-         * @param {Transform} parent The parent.
+         * @param {Transform | null} parent The parent.
          * @param {boolean} [notifyParent=true] Adds this as a child of the parent.
          */
-        setParent(parent: Transform, notifyParent?: boolean): void;
+        setParent(parent: Transform | null, notifyParent?: boolean): void;
 
         /**
          * Add a child.
@@ -393,7 +401,7 @@ declare module 'ogl' {
         /**
          * Update world transform.
          */
-        updateMatrixWorld(force: boolean): void;
+        updateMatrixWorld(force?: boolean): void;
 
         /**
          * Update local transform.
@@ -412,7 +420,7 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Camera.js | Source}
      */
-    export type CameraOptions = {
+    export interface CameraOptions {
         near: number;
         far: number;
         fov: number;
@@ -422,7 +430,7 @@ declare module 'ogl' {
         bottom: number;
         top: number;
         zoom: number;
-    };
+    }
 
     export class Camera extends Transform {
         near: number;
@@ -444,9 +452,9 @@ declare module 'ogl' {
 
         constructor(gl: OGLRenderingContext, options?: Partial<CameraOptions>);
 
-        perspective(parameters?: Partial<CameraOptions>): this;
+        perspective(options?: Partial<CameraOptions>): this;
 
-        orthographic(parameters?: Partial<CameraOptions>): this;
+        orthographic(options?: Partial<CameraOptions>): this;
 
         updateMatrixWorld(): this;
 
@@ -468,27 +476,35 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
      */
-    export type Attribute = {
+    export interface Attribute {
         data: ArrayLike<number> | ArrayBufferView;
         size: number;
-        instanced?: null | number | boolean;
+        instanced: null | number | boolean;
         type: GLenum;
         normalized: boolean;
 
-        buffer?: WebGLBuffer;
+        buffer: WebGLBuffer;
         stride: number;
         offset: number;
-        count?: number;
-        min?: any;
-        max?: any;
+        count: number;
+        min: any;
+        max: any;
 
-        target?: number;
-        id?: number;
-        divisor?: number;
-        needsUpdate?: boolean;
-    };
+        target: number;
+        id: number;
+        divisor: number;
+        needsUpdate: boolean;
+    }
 
     export type AttributeMap = Record<string, Partial<Attribute>>;
+
+    export type Bounds = {
+        min: Vec3;
+        max: Vec3;
+        center: Vec3;
+        scale: Vec3;
+        radius: number;
+    };
 
     export class Geometry {
         gl: OGLRenderingContext;
@@ -502,6 +518,9 @@ declare module 'ogl' {
         };
         instancedCount: number;
         glState: RenderState;
+
+        isInstanced: boolean;
+        bounds: Bounds;
 
         constructor(gl: OGLRenderingContext, attributes?: AttributeMap);
 
@@ -519,13 +538,13 @@ declare module 'ogl' {
 
         bindAttributes(program: Program): void;
 
-        draw(parameters: object): void;
+        draw(options: object): void;
 
         getPosition(): Attribute | boolean | void;
 
-        computeBoundingBox(attr: Partial<Attribute>): void;
+        computeBoundingBox(attr?: Partial<Attribute>): void;
 
-        computeBoundingSphere(attr: Partial<Attribute>): void;
+        computeBoundingSphere(attr?: Partial<Attribute>): void;
 
         remove(): void;
     }
@@ -542,13 +561,13 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Plane.js | Source}
      */
-    export type PlaneOptions = {
+    export interface PlaneOptions {
         width: number;
         height: number;
         widthSegments: number;
         heightSegments: number;
         attributes: AttributeMap;
-    };
+    }
 
     export class Plane extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<PlaneOptions>);
@@ -578,7 +597,7 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Box.js | Source}
      */
-    export type BoxOptions = {
+    export interface BoxOptions {
         width: number;
         height: number;
         depth: number;
@@ -586,7 +605,7 @@ declare module 'ogl' {
         heightSegments: number;
         depthSegments: number;
         attributes: AttributeMap;
-    };
+    }
 
     export class Box extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<BoxOptions>);
@@ -597,7 +616,7 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Sphere.js | Source}
      */
-    export type SphereOptions = {
+    export interface SphereOptions {
         radius: number;
         widthSegments: number;
         heightSegments: number;
@@ -606,7 +625,7 @@ declare module 'ogl' {
         thetaStart: number;
         thetaLength: number;
         attributes: AttributeMap;
-    };
+    }
 
     export class Sphere extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<SphereOptions>);
@@ -617,7 +636,7 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Cylinder.js | Source}
      */
-    export type CylinderOptions = {
+    export interface CylinderOptions {
         radiusTop: number;
         radiusBottom: number;
         height: number;
@@ -627,7 +646,7 @@ declare module 'ogl' {
         thetaStart: number;
         thetaLength: number;
         attributes: AttributeMap;
-    };
+    }
 
     export class Cylinder extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<CylinderOptions>);
@@ -656,7 +675,7 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Program.js | Source}
      */
-    export type ProgramOptions = {
+    export interface ProgramOptions {
         vertex: string;
         fragment: string;
         uniforms: Record<string, any>;
@@ -666,18 +685,18 @@ declare module 'ogl' {
         depthTest: boolean;
         depthWrite: boolean;
         depthFunc: GLenum;
-    };
+    }
 
     export interface BlendFunc {
-        src?: GLenum;
-        dst?: GLenum;
-        srcAlpha?: GLenum;
-        dstAlpha?: GLenum;
+        src: GLenum;
+        dst: GLenum;
+        srcAlpha: GLenum;
+        dstAlpha: GLenum;
     }
 
     export interface BlendEquation {
-        modeRGB?: GLenum;
-        modeAlpha?: GLenum;
+        modeRGB: GLenum;
+        modeAlpha: GLenum;
     }
 
     export class Program {
@@ -705,7 +724,7 @@ declare module 'ogl' {
 
         applyState(): void;
 
-        use(parameters?: object): void;
+        use(options?: object): void;
 
         remove(): void;
     }
@@ -720,13 +739,16 @@ declare module 'ogl' {
     }
 
     /**
-     * Represents a triangular {@link https://en.wikipedia.org/wiki/Polygon_mesh | polygon mesh}.
+     * Represents a {@link https://en.wikipedia.org/wiki/Polygon_mesh | polygon mesh}.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Mesh.js | Source}
      */
-    export interface MeshOptions {
-        geometry: Geometry;
-        program: Program;
+    export interface MeshOptions<
+        TGeometry extends Geometry = Geometry,
+        TProgram extends Program = Program,
+    > {
+        geometry: TGeometry;
+        program: TProgram;
         mode: GLenum;
         frustumCulled: boolean;
         renderOrder: number;
@@ -736,12 +758,15 @@ declare module 'ogl' {
         camera: Camera;
     }
 
-    export class Mesh extends Transform {
+    export class Mesh<
+        TGeometry extends Geometry = Geometry,
+        TProgram extends Program = Program,
+    > extends Transform {
         gl: OGLRenderingContext;
         id: number;
 
-        geometry: Geometry;
-        program: Program;
+        geometry: TGeometry;
+        program: TProgram;
         mode: GLenum;
         frustumCulled: boolean;
         renderOrder: number;
@@ -758,7 +783,7 @@ declare module 'ogl' {
 
         onAfterRender(f: Function): this;
 
-        draw(parameters: Partial<DrawOptions>): void;
+        draw(options: Partial<DrawOptions>): void;
     }
 
     /**
@@ -820,7 +845,13 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Texture.js | Source}
      */
-    export type CompressedImage = { isCompressedTexture?: boolean } & { data: Uint8Array; width: number; height: number }[];
+    export type CompressedImage = {
+        isCompressedTexture?: boolean;
+    } & {
+        data: Uint8Array;
+        width: number;
+        height: number;
+    }[];
 
     export type ImageRepresentation =
         | HTMLImageElement
@@ -915,6 +946,235 @@ declare module 'ogl' {
         ): Promise<HTMLImageElement | ImageBitmap>;
 
         static clearCache(): void;
+    }
+
+    /**
+     * A {@link https://github.com/binomialLLC/basis_universal | Basis Universal GPU Texture} loader.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/BasisManager.js | Source}
+     */
+    export type BasisImage = (Uint8Array | Uint16Array) & {
+        width: number
+        height: number
+        isCompressedTexture: boolean
+        internalFormat: number
+        isBasis: boolean
+    };
+
+    export class BasisManager {
+        constructor(workerSrc: string | URL, gl?: OGLRenderingContext);
+
+        getSupportedFormat(gl?: OGLRenderingContext): 'astc' | 'bptc' | 's3tc' | 'etc1' | 'pvrtc' | 'none';
+
+        initWorker(workerSrc: string | URL): void;
+
+        onMessage(event: { data: { id: number; error: string; image: BasisImage } }): void;
+
+        parseTexture(buffer: ArrayBuffer): Promise<BasisImage>;
+    }
+
+    /**
+     * A mesh with a skeleton and bones for animation.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFSkin.js | Source}
+     */
+    export interface GLTFSkinSkeleton {
+        joints: { worldMatrix: Mat4; bindInverse: Mat4 }[];
+    }
+
+    export interface GLTFSkinOptions {
+        skeleton: GLTFSkinSkeleton;
+        geometry: Geometry;
+        program: Program;
+        mode: GLenum;
+    }
+
+    export class GLTFSkin<
+        TProgram extends Program = Program,
+    > extends Mesh {
+        skeleton: GLTFSkinSkeleton;
+        program: TProgram;
+
+        boneMatrices: Float32Array;
+        boneTextureSize: number;
+        boneTexture: Texture;
+
+        constructor(gl: OGLRenderingContext, options?: Partial<GLTFSkinOptions>);
+
+        createBoneTexture(): void;
+
+        updateUniforms(): void;
+
+        draw(options?: { camera?: Camera }): void;
+    }
+
+    /**
+     * A class for animation.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFAnimation.js | Source}
+     */
+    export interface GLTFAnimationData {
+        node: any;
+        transform: any;
+        interpolation: any;
+        times: any;
+        values: any;
+    }
+
+    export class GLTFAnimation {
+        data: GLTFAnimationData[];
+        elapsed: number;
+        weight: number;
+        loop: boolean;
+        startTime: number;
+        endTime: number;
+        duration: number;
+
+        constructor(data: GLTFAnimationData[], weight?: number);
+
+        update(totalWeight?: number, isSet?: boolean): void;
+
+        cubicSplineInterpolate(t: number, prevVal: any, prevTan: any, nextTan: any, nextVal: any): any;
+    }
+
+    /**
+     * A {@link https://www.khronos.org/gltf/ | glTF (GL Transmission Format)} loader.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFLoader.js | Source}
+     */
+    export interface GLTFAnimationReference {
+        name: string;
+        animation: GLTFAnimation;
+    }
+
+    export interface GLTFLightOptions {
+        name: string;
+        color: { value: Color };
+        direction: { value: Vec3 };
+        position: { value: Vec3 };
+        distance: { value: number };
+        decay: { value: number };
+    }
+
+    export interface GLTFLights {
+        directional: Partial<GLTFLightOptions>[];
+        point: Partial<GLTFLightOptions>[];
+        spot: Partial<GLTFLightOptions>[];
+    }
+
+    export interface GLTFAccessor {
+        data: ArrayLike<number>;
+        size: number;
+        type: number | string;
+        normalized: boolean;
+        buffer: WebGLBuffer;
+        stride: number;
+        offset: number;
+        count: number;
+        min: number;
+        max: number;
+    }
+
+    export interface GLTFSkinReference {
+        inverseBindMatrices: GLTFAccessor;
+        skeleton: GLTFSkinSkeleton;
+        joints: { worldMatrix: Mat4; bindInverse: Mat4 }[];
+    }
+
+    export interface GLTFMaterial {
+        name: string;
+        extensions: object;
+        extras: object;
+        baseColorFactor: [number, number, number, number];
+        baseColorTexture: { texture: Texture; scale: number };
+        metallicFactor: number;
+        roughnessFactor: number;
+        metallicRoughnessTexture: { texture: Texture; scale: number };
+        normalTexture: { texture: Texture; scale: number };
+        occlusionTexture: { texture: Texture; scale: number };
+        emissiveTexture: { texture: Texture; scale: number };
+        emissiveFactor: [number, number, number];
+        alphaMode: string;
+        alphaCutoff: number;
+        doubleSided: boolean;
+    }
+
+    export interface GLTFProgram extends NormalProgram {
+        gltfMaterial: GLTFMaterial;
+    }
+
+    export interface GLTFPrimitive {
+        geometry: Geometry;
+        program: GLTFProgram;
+        mode: number;
+    }
+
+    export interface GLTFMesh {
+        primitives: (InstancedMesh | Mesh)[];
+        weights: number[];
+        name: string;
+    }
+
+    export interface GLTFDescription {
+    }
+
+    export interface GLTF {
+        json: GLTFDescription;
+        buffers: ArrayBuffer[];
+        bufferViews: ArrayBufferView[];
+        images: (HTMLImageElement | ImageBitmap)[];
+        textures: Texture[];
+        materials: GLTFMaterial[];
+        meshes: GLTFMesh[];
+        nodes: (InstancedMesh | Mesh)[];
+        lights: GLTFLights;
+        animations: GLTFAnimationReference[];
+        scenes: Transform[];
+        scene: Transform[];
+    }
+
+    export class GLTFLoader {
+        static setBasisManager(manager: BasisManager): void;
+
+        static load(gl: OGLRenderingContext, src: string): Promise<GLTF>;
+
+        static parse(gl: OGLRenderingContext, desc: GLTFDescription, dir: string): Promise<GLTF>;
+
+        static parseDesc(src: string): Promise<GLTFDescription>;
+
+        static unpackGLB(glb: ArrayBuffer): GLTFDescription;
+
+        static resolveURI(uri: string, dir: string): string;
+
+        static loadBuffers(desc: GLTFDescription, dir: string): Promise<ArrayBuffer[]> | null;
+
+        static parseBufferViews(gl: OGLRenderingContext, desc: GLTFDescription, buffers: ArrayBuffer[]): ArrayBufferView[] | null;
+
+        static parseImages(gl: OGLRenderingContext, desc: GLTFDescription, dir: string, bufferViews: ArrayBufferView[]): Promise<(HTMLImageElement | ImageBitmap)[]> | null;
+
+        static parseTextures(gl: OGLRenderingContext, desc: GLTFDescription, images: (HTMLImageElement | ImageBitmap)[]): Texture[] | null;
+
+        static createTexture(gl: OGLRenderingContext, desc: GLTFDescription, images: (HTMLImageElement | ImageBitmap)[], options: { sample: any; source: any; name: any; extensions: any; extras: any }): Texture;
+
+        static parseMaterials(gl: OGLRenderingContext, desc: GLTFDescription, textures: Texture[]): GLTFMaterial[] | null;
+
+        static parseSkins(gl: OGLRenderingContext, desc: GLTFDescription, bufferViews: ArrayBufferView[]): GLTFSkinReference[] | null;
+
+        static parseMeshes(gl: OGLRenderingContext, desc: GLTFDescription, bufferViews: ArrayBufferView[], materials: GLTFMaterial[], skins: GLTFSkinReference[]): GLTFMesh[] | null;
+
+        static parsePrimitives(gl: OGLRenderingContext, primitives: object[], desc: GLTFDescription, bufferViews: ArrayBufferView[], materials: GLTFMaterial[], numInstances: number, isLightmap: boolean): GLTFPrimitive[];
+
+        static parseAccessor(index: number, desc: GLTFDescription, bufferViews: ArrayBufferView[]): GLTFAccessor;
+
+        static parseNodes(gl: OGLRenderingContext, desc: GLTFDescription, meshes: GLTFMesh[], skins: GLTFSkinReference[], images: (HTMLImageElement | ImageBitmap)[]): (InstancedMesh | Mesh)[] | null;
+
+        static populateSkins(skins: GLTFSkinReference[], nodes: (InstancedMesh | Mesh)[]): void;
+
+        static parseAnimations(gl: OGLRenderingContext, desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[], bufferViews: ArrayBufferView[]): GLTFAnimationReference[] | null;
+
+        static parseScenes(desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[]): Transform[] | null;
+
+        static parseLights(gl: OGLRenderingContext, desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[], scenes: Transform[]): GLTFLights;
     }
 
     /**
@@ -1053,7 +1313,7 @@ declare module 'ogl' {
 
         activeTexture(value: number): void;
 
-        bindFramebuffer(parameters?: object): void;
+        bindFramebuffer(options?: object): void;
 
         getExtension(extension: string, webgl2Func: string, extFunc: string): Function;
 
@@ -1063,9 +1323,9 @@ declare module 'ogl' {
 
         sortUI(a: number, b: number): number;
 
-        getRenderList(parameters: object): void;
+        getRenderList(options: object): void;
 
-        render(parameters: object): void;
+        render(options: object): void;
     }
 
     /**
@@ -1075,7 +1335,7 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
      * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
      */
-    export type OrbitOptions = {
+    export interface OrbitOptions {
         element: HTMLElement;
         enabled: boolean;
         target: Vec3;
@@ -1096,7 +1356,7 @@ declare module 'ogl' {
         maxAzimuthAngle: number;
         minDistance: number;
         maxDistance: number;
-    };
+    }
 
     export class Orbit {
         enabled: boolean;
