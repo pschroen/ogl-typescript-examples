@@ -1244,8 +1244,8 @@ declare module 'ogl' {
     } & (WebGL2RenderingContext | WebGLRenderingContext);
 
     export type RenderState = {
-        blendFunc: {src: GLenum; dst: GLenum; srcAlpha?: any; dstAlpha?: any};
-        blendEquation: {modeRGB: GLenum; modeAlpha?: any};
+        blendFunc: { src: GLenum; dst: GLenum; srcAlpha?: any; dstAlpha?: any };
+        blendEquation: { modeRGB: GLenum; modeAlpha?: any };
         cullFace: GLenum | false;
         frontFace: number;
         depthMask: boolean;
@@ -1253,7 +1253,7 @@ declare module 'ogl' {
         premultiplyAlpha: boolean;
         flipY: boolean;
         unpackAlignment: number;
-        viewport: {width: number | null; height: number | null};
+        viewport: { width: number | null; height: number | null };
         textureUnits: Array<number>;
         activeTextureUnit: number;
         framebuffer: any;
@@ -1262,6 +1262,11 @@ declare module 'ogl' {
     };
 
     export type RenderExtensions = Record<string, any>;
+
+    export type DeviceParameters = {
+        maxTextureUnits: number;
+        maxAnisotropy: number;
+    };
 
     export class Renderer {
         dpr: number;
@@ -1275,6 +1280,8 @@ declare module 'ogl' {
 
         gl: OGLRenderingContext;
         isWebgl2: boolean;
+        width: number;
+        height: number;
 
         state: RenderState;
         extensions: RenderExtensions;
@@ -1286,6 +1293,8 @@ declare module 'ogl' {
         bindVertexArray: Function;
         deleteVertexArray: Function;
         drawBuffers: Function;
+
+        parameters: DeviceParameters;
 
         constructor(options?: Partial<RendererOptions>);
 
@@ -1375,5 +1384,47 @@ declare module 'ogl' {
         forcePosition(): void;
 
         remove(): void;
+    }
+
+    /**
+     * A class for {@link https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units | GPGPU (General Purpose GPU)} calculations.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GPGPU.js | Source}
+     */
+    export interface GPGPUPass {
+        mesh: Mesh;
+        program: Program;
+        uniforms: Record<string, any>;
+        enabled: boolean;
+        textureUniform: string;
+    }
+
+    export interface GPGPUOptions {
+        data: Float32Array
+        geometry: Triangle
+        type: Texture['type']
+    }
+
+    export class GPGPU {
+        gl: OGLRenderingContext;
+        passes: GPGPUPass[];
+        geometry: Triangle;
+        dataLength: number;
+        size: number;
+        coords: Float32Array;
+        uniform: { value: any };
+        fbo: { read: RenderTarget; write: RenderTarget; swap: () => void };
+
+        constructor(gl: OGLRenderingContext, options?: Partial<GPGPUOptions>);
+
+        addPass(options?: {
+            vertex?: string;
+            fragment?: string;
+            uniforms?: Record<string, any>;
+            textureUniform?: string;
+            enabled?: boolean;
+        }): GPGPUPass;
+
+        render(): void;
     }
 }
