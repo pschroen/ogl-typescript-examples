@@ -680,7 +680,7 @@ declare module 'ogl' {
         fragment: string;
         uniforms: Record<string, any>;
         transparent: boolean;
-        cullFace: GLenum | false;
+        cullFace: GLenum | false | null;
         frontFace: GLenum;
         depthTest: boolean;
         depthWrite: boolean;
@@ -705,7 +705,7 @@ declare module 'ogl' {
         id: number;
 
         transparent: boolean;
-        cullFace: GLenum | false;
+        cullFace: GLenum | false | null;
         frontFace: GLenum;
         depthTest: boolean;
         depthWrite: boolean;
