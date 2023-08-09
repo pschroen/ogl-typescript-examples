@@ -28,9 +28,9 @@ declare module 'ogl' {
 
         fromQuaternion(q: Quat, order?: string): this;
 
-        fromArray(a: Float32Array | Array<number>, o?: number): this;
+        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
 
-        toArray(a?: Float32Array | Array<number>, o?: number): Float32Array | Array<number>;
+        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
     }
 
     /**
@@ -93,9 +93,9 @@ declare module 'ogl' {
 
         clone(): Vec2;
 
-        fromArray(a: Float32Array | Array<number>, o?: number): this;
+        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
 
-        toArray(a?: Float32Array | Array<number>, o?: number): Float32Array | Array<number>;
+        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
     }
 
     /**
@@ -166,9 +166,9 @@ declare module 'ogl' {
 
         clone(): Vec3;
 
-        fromArray(a: Float32Array | Array<number>, o?: number): this;
+        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
 
-        toArray(a?: Float32Array | Array<number>, o?: number): Float32Array | Array<number>;
+        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
 
         transformDirection(mat4: Mat4): this;
     }
@@ -269,9 +269,9 @@ declare module 'ogl' {
 
         determinant(): number;
 
-        fromArray(a: Float32Array | Array<number>, o?: number): this;
+        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
 
-        toArray(a?: Float32Array | Array<number>, o?: number): Float32Array | Array<number>;
+        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
     }
 
     /**
@@ -477,7 +477,7 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
      */
     export interface Attribute {
-        data: ArrayLike<number> | ArrayBufferView;
+        data: Float32Array | Uint32Array | Uint16Array;
         size: number;
         instanced: null | number | boolean;
         type: GLenum;
