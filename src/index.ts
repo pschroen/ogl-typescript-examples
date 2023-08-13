@@ -1,70 +1,353 @@
-import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh } from 'ogl';
+import { Renderer, Camera, Transform, Orbit, Program, GLTFLoader, Vec3, TextureLoader, Mesh } from 'ogl';
+import type { GLTF, GLTFProgram, GLTFSkin, Geometry } from 'ogl';
 
-const vertex = /* glsl */ `
-    attribute vec2 uv;
-    attribute vec3 position;
+const shader = {
+    vertex: /* glsl */ `
+        attribute vec3 position;
 
-    // Add instanced attributes just like any attribute
-    attribute vec3 offset;
-    attribute vec3 random;
+        #ifdef UV
+            attribute vec2 uv;
+        #else
+            const vec2 uv = vec2(0);
+        #endif
 
-    uniform mat4 modelViewMatrix;
-    uniform mat4 projectionMatrix;
-    uniform float uTime;
+        #ifdef NORMAL
+            attribute vec3 normal;
+        #else
+            const vec3 normal = vec3(0);
+        #endif
 
-    varying vec2 vUv;
-    varying vec3 vNormal;
+        #ifdef INSTANCED
+            attribute mat4 instanceMatrix;
+        #endif
 
-    void rotate2d(inout vec2 v, float a){
-        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
-        v = m * v;
-    }
+        #ifdef SKINNING
+            attribute vec4 skinIndex;
+            attribute vec4 skinWeight;
+        #endif
 
-    void main() {
-        vUv = uv;
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+        uniform mat4 modelMatrix;
+        uniform mat3 normalMatrix;
 
-        // copy position so that we can modify the instances
-        vec3 pos = position;
+        #ifdef SKINNING
+            uniform sampler2D boneTexture;
+            uniform int boneTextureSize;
+        #endif
 
-        // scale first
-        pos *= 0.9 + random.y * 0.2;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vMPos;
+        varying vec4 vMVPos;
 
-        // rotate around y axis
-        rotate2d(pos.xz, random.x * 6.28 + 4.0 * uTime * (random.y - 0.5));
+        #ifdef SKINNING
+            mat4 getBoneMatrix(const in float i) ${`{`}
+                float j = i * 4.0;
+                float x = mod(j, float(boneTextureSize));
+                float y = floor(j / float(boneTextureSize));
 
-        // rotate around x axis just to add some extra variation
-        rotate2d(pos.zy, random.z * 0.5 * sin(uTime * random.x + random.z * 3.14));
+                float dx = 1.0 / float(boneTextureSize);
+                float dy = 1.0 / float(boneTextureSize);
 
-        pos += offset;
+                y = dy * (y + 0.5);
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-    }
-`;
+                vec4 v1 = texture2D(boneTexture, vec2(dx * (x + 0.5), y));
+                vec4 v2 = texture2D(boneTexture, vec2(dx * (x + 1.5), y));
+                vec4 v3 = texture2D(boneTexture, vec2(dx * (x + 2.5), y));
+                vec4 v4 = texture2D(boneTexture, vec2(dx * (x + 3.5), y));
 
-const fragment = /* glsl */ `
-    precision highp float;
+                return mat4(v1, v2, v3, v4);
+            }
 
-    uniform float uTime;
-    uniform sampler2D tMap;
+            void skin(inout vec4 pos, inout vec3 nml) ${`{`}
+                mat4 boneMatX = getBoneMatrix(skinIndex.x);
+                mat4 boneMatY = getBoneMatrix(skinIndex.y);
+                mat4 boneMatZ = getBoneMatrix(skinIndex.z);
+                mat4 boneMatW = getBoneMatrix(skinIndex.w);
 
-    varying vec2 vUv;
+                // update normal
+                mat4 skinMatrix = mat4(0.0);
+                skinMatrix += skinWeight.x * boneMatX;
+                skinMatrix += skinWeight.y * boneMatY;
+                skinMatrix += skinWeight.z * boneMatZ;
+                skinMatrix += skinWeight.w * boneMatW;
+                nml = vec4(skinMatrix * vec4(nml, 0.0)).xyz;
 
-    void main() {
-        vec3 tex = texture2D(tMap, vUv).rgb;
+                // Update position
+                vec4 transformed = vec4(0.0);
+                transformed += boneMatX * pos * skinWeight.x;
+                transformed += boneMatY * pos * skinWeight.y;
+                transformed += boneMatZ * pos * skinWeight.z;
+                transformed += boneMatW * pos * skinWeight.w;
+                pos = transformed;
+            }
+        #endif
 
-        gl_FragColor.rgb = tex;
-        gl_FragColor.a = 1.0;
-    }
-`;
+        void main() ${`{`}
+            vec4 pos = vec4(position, 1);
+            vec3 nml = normal;
+
+            #ifdef SKINNING
+                skin(pos, nml);
+            #endif
+
+            #ifdef INSTANCED
+                pos = instanceMatrix * pos;
+
+                mat3 m = mat3(instanceMatrix);
+                nml /= vec3(dot(m[0], m[0]), dot(m[1], m[1]), dot(m[2], m[2]));
+                nml = m * nml;
+            #endif
+
+            vUv = uv;
+            vNormal = normalize(nml);
+
+            vec4 mPos = modelMatrix * pos;
+            vMPos = mPos.xyz / mPos.w;
+            vMVPos = modelViewMatrix * pos;
+
+            gl_Position = projectionMatrix * vMVPos;
+        }
+    `,
+
+    fragment: /* glsl */ `
+        uniform mat4 viewMatrix;
+        uniform vec3 cameraPosition;
+
+        uniform vec4 uBaseColorFactor;
+        uniform sampler2D tBaseColor;
+
+        uniform sampler2D tRM;
+        uniform float uRoughness;
+        uniform float uMetallic;
+
+        uniform sampler2D tNormal;
+        uniform float uNormalScale;
+
+        uniform sampler2D tEmissive;
+        uniform vec3 uEmissive;
+
+        uniform sampler2D tOcclusion;
+
+        uniform sampler2D tLUT;
+        uniform sampler2D tEnvDiffuse;
+        uniform sampler2D tEnvSpecular;
+        uniform float uEnvDiffuse;
+        uniform float uEnvSpecular;
+
+        uniform vec3 uLightDirection;
+        uniform vec3 uLightColor;
+
+        uniform float uAlpha;
+        uniform float uAlphaCutoff;
+
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vMPos;
+        varying vec4 vMVPos;
+
+        const float PI = 3.14159265359;
+        const float RECIPROCAL_PI = 0.31830988618;
+        const float RECIPROCAL_PI2 = 0.15915494;
+        const float LN2 = 0.6931472;
+
+        const float ENV_LODS = 6.0;
+
+        vec4 SRGBtoLinear(vec4 srgb) ${`{`}
+            vec3 linOut = pow(srgb.xyz, vec3(2.2));
+            return vec4(linOut, srgb.w);
+        }
+
+        vec4 RGBMToLinear(in vec4 value) ${`{`}
+            float maxRange = 6.0;
+            return vec4(value.xyz * value.w * maxRange, 1.0);
+        }
+
+        vec3 linearToSRGB(vec3 color) ${`{`}
+            return pow(color, vec3(1.0 / 2.2));
+        }
+
+        vec3 getNormal() ${`{`}
+            #ifdef NORMAL_MAP
+                vec3 pos_dx = dFdx(vMPos.xyz);
+                vec3 pos_dy = dFdy(vMPos.xyz);
+                vec2 tex_dx = dFdx(vUv);
+                vec2 tex_dy = dFdy(vUv);
+
+                // Tangent, Bitangent
+                vec3 t = normalize(pos_dx * tex_dy.t - pos_dy * tex_dx.t);
+                vec3 b = normalize(-pos_dx * tex_dy.s + pos_dy * tex_dx.s);
+                mat3 tbn = mat3(t, b, normalize(vNormal));
+
+                vec3 n = texture2D(tNormal, vUv).rgb * 2.0 - 1.0;
+                n.xy *= uNormalScale;
+                vec3 normal = normalize(tbn * n);
+
+                // Get world normal from view normal (normalMatrix * normal)
+                // return normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+                return normalize(normal);
+            #else
+                return normalize(vNormal);
+            #endif
+        }
+
+        vec3 specularReflection(vec3 specularEnvR0, vec3 specularEnvR90, float VdH) ${`{`}
+            return specularEnvR0 + (specularEnvR90 - specularEnvR0) * pow(clamp(1.0 - VdH, 0.0, 1.0), 5.0);
+        }
+
+        float geometricOcclusion(float NdL, float NdV, float roughness) ${`{`}
+            float r = roughness;
+
+            float attenuationL = 2.0 * NdL / (NdL + sqrt(r * r + (1.0 - r * r) * (NdL * NdL)));
+            float attenuationV = 2.0 * NdV / (NdV + sqrt(r * r + (1.0 - r * r) * (NdV * NdV)));
+            return attenuationL * attenuationV;
+        }
+
+        float microfacetDistribution(float roughness, float NdH) ${`{`}
+            float roughnessSq = roughness * roughness;
+            float f = (NdH * roughnessSq - NdH) * NdH + 1.0;
+            return roughnessSq / (PI * f * f);
+        }
+
+        vec2 cartesianToPolar(vec3 n) ${`{`}
+            vec2 uv;
+            uv.x = atan(n.z, n.x) * RECIPROCAL_PI2 + 0.5;
+            uv.y = asin(n.y) * RECIPROCAL_PI + 0.5;
+            return uv;
+        }
+
+        void getIBLContribution(inout vec3 diffuse, inout vec3 specular, float NdV, float roughness, vec3 n, vec3 reflection, vec3 diffuseColor, vec3 specularColor) ${`{`}
+            vec3 brdf = SRGBtoLinear(texture2D(tLUT, vec2(NdV, roughness))).rgb;
+
+            vec3 diffuseLight = RGBMToLinear(texture2D(tEnvDiffuse, cartesianToPolar(n))).rgb;
+            diffuseLight = mix(vec3(1), diffuseLight, uEnvDiffuse);
+
+            // Sample 2 levels and mix between to get smoother degradation
+            float blend = roughness * ENV_LODS;
+            float level0 = floor(blend);
+            float level1 = min(ENV_LODS, level0 + 1.0);
+            blend -= level0;
+
+            // Sample the specular env map atlas depending on the roughness value
+            vec2 uvSpec = cartesianToPolar(reflection);
+            uvSpec.y /= 2.0;
+
+            vec2 uv0 = uvSpec;
+            vec2 uv1 = uvSpec;
+
+            uv0 /= pow(2.0, level0);
+            uv0.y += 1.0 - exp(-LN2 * level0);
+
+            uv1 /= pow(2.0, level1);
+            uv1.y += 1.0 - exp(-LN2 * level1);
+
+            vec3 specular0 = RGBMToLinear(texture2D(tEnvSpecular, uv0)).rgb;
+            vec3 specular1 = RGBMToLinear(texture2D(tEnvSpecular, uv1)).rgb;
+            vec3 specularLight = mix(specular0, specular1, blend);
+
+            diffuse = diffuseLight * diffuseColor;
+
+            // Bit of extra reflection for smooth materials
+            float reflectivity = pow((1.0 - roughness), 2.0) * 0.05;
+            specular = specularLight * (specularColor * brdf.x + brdf.y + reflectivity);
+            specular *= uEnvSpecular;
+        }
+
+        void main() ${`{`}
+            vec4 baseColor = uBaseColorFactor;
+            #ifdef COLOR_MAP
+                baseColor *= SRGBtoLinear(texture2D(tBaseColor, vUv));
+            #endif
+
+            // Get base alpha
+            float alpha = baseColor.a;
+
+            #ifdef ALPHA_MASK
+                if (alpha < uAlphaCutoff) discard;
+            #endif
+
+            // RM map packed as gb = [nothing, roughness, metallic, nothing]
+            vec4 rmSample = vec4(1);
+            #ifdef RM_MAP
+                rmSample *= texture2D(tRM, vUv);
+            #endif
+            float roughness = clamp(rmSample.g * uRoughness, 0.04, 1.0);
+            float metallic = clamp(rmSample.b * uMetallic, 0.04, 1.0);
+
+            vec3 f0 = vec3(0.04);
+            vec3 diffuseColor = baseColor.rgb * (vec3(1.0) - f0) * (1.0 - metallic);
+            vec3 specularColor = mix(f0, baseColor.rgb, metallic);
+
+            vec3 specularEnvR0 = specularColor;
+            vec3 specularEnvR90 = vec3(clamp(max(max(specularColor.r, specularColor.g), specularColor.b) * 25.0, 0.0, 1.0));
+
+            vec3 N = getNormal();
+            vec3 V = normalize(cameraPosition - vMPos);
+            vec3 L = normalize(uLightDirection);
+            vec3 H = normalize(L + V);
+            vec3 reflection = normalize(reflect(-V, N));
+
+            float NdL = clamp(dot(N, L), 0.001, 1.0);
+            float NdV = clamp(abs(dot(N, V)), 0.001, 1.0);
+            float NdH = clamp(dot(N, H), 0.0, 1.0);
+            float LdH = clamp(dot(L, H), 0.0, 1.0);
+            float VdH = clamp(dot(V, H), 0.0, 1.0);
+
+            vec3 F = specularReflection(specularEnvR0, specularEnvR90, VdH);
+            float G = geometricOcclusion(NdL, NdV, roughness);
+            float D = microfacetDistribution(roughness, NdH);
+
+            vec3 diffuseContrib = (1.0 - F) * (diffuseColor / PI);
+            vec3 specContrib = F * G * D / (4.0 * NdL * NdV);
+
+            // Shading based off lights
+            vec3 color = NdL * uLightColor * (diffuseContrib + specContrib);
+
+            // Add lights spec to alpha for reflections on transparent surfaces (glass)
+            alpha = max(alpha, max(max(specContrib.r, specContrib.g), specContrib.b));
+
+            // Calculate IBL lighting
+            vec3 diffuseIBL;
+            vec3 specularIBL;
+            getIBLContribution(diffuseIBL, specularIBL, NdV, roughness, N, reflection, diffuseColor, specularColor);
+
+            // Add IBL on top of color
+            color += diffuseIBL + specularIBL;
+
+            // Add IBL spec to alpha for reflections on transparent surfaces (glass)
+            alpha = max(alpha, max(max(specularIBL.r, specularIBL.g), specularIBL.b));
+
+            #ifdef OCC_MAP
+                // TODO: figure out how to apply occlusion
+                // color *= SRGBtoLinear(texture2D(tOcclusion, vUv)).rgb;
+            #endif
+
+            #ifdef EMISSIVE_MAP
+                vec3 emissive = SRGBtoLinear(texture2D(tEmissive, vUv)).rgb * uEmissive;
+                color += emissive;
+            #endif
+
+            // Convert to sRGB to display
+            gl_FragColor.rgb = linearToSRGB(color);
+
+            // Apply uAlpha uniform at the end to overwrite any specular additions on transparent surfaces
+            gl_FragColor.a = alpha * uAlpha;
+        }
+    `,
+};
 
 {
     const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
-    gl.clearColor(1, 1, 1, 1);
+    gl.clearColor(0.1, 0.1, 0.1, 1);
 
-    const camera = new Camera(gl, { fov: 15 });
-    camera.position.z = 15;
+    const camera = new Camera(gl, { near: 1, far: 1000 });
+    // camera.position.set(60, 25, -60);
+    camera.position.set(30, 15, -30);
+    const controls = new Orbit(camera);
+    // controls.target.y = 25;
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -75,58 +358,223 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    const texture = new Texture(gl);
-    const img = new Image();
-    img.onload = () => (texture.image = img);
-    img.src = 'assets/acorn.jpg';
+    let gltf: GLTF;
 
-    const program = new Program(gl, {
-        vertex,
-        fragment,
-        uniforms: {
-            uTime: { value: 0 },
-            tMap: { value: texture },
-        },
+    // Common textures for uber shader
+    const lutTexture = TextureLoader.load(gl, {
+        src: 'assets/pbr/lut.png',
+    });
+    const envDiffuseTexture = TextureLoader.load(gl, {
+        src: 'assets/sunset-diffuse-RGBM.png',
+    });
+    const envSpecularTexture = TextureLoader.load(gl, {
+        src: 'assets/sunset-specular-RGBM.png',
     });
 
-    let mesh: Mesh;
-    loadModel();
-    async function loadModel() {
-        const data = await (await fetch(`assets/acorn.json`)).json();
+    {
+        loadInitial();
+        handlers();
+    }
 
-        const num = 20;
+    async function loadInitial() {
+        gltf = await GLTFLoader.load(gl, `assets/gltf/hershel.glb`);
+        addGLTF(gltf);
+    }
 
-        let offset = new Float32Array(num * 3);
-        let random = new Float32Array(num * 3);
-        for (let i = 0; i < num; i++) {
-            offset.set([Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1], i * 3);
+    function handlers() {
+        gl.canvas.addEventListener('dragover', over);
+        gl.canvas.addEventListener('drop', drop);
+    }
 
-            // unique random values are always handy for instances.
-            // Here they will be used for rotation, scale and movement.
-            random.set([Math.random(), Math.random(), Math.random()], i * 3);
+    function over(e: DragEvent) {
+        e.preventDefault();
+    }
+
+    function drop(e: DragEvent) {
+        e.preventDefault();
+        const file = e.dataTransfer!.files[0];
+        const reader = new FileReader();
+        const isGLB = file.name.match(/\.glb$/);
+
+        if (isGLB) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
         }
 
-        const geometry = new Geometry(gl, {
-            position: { size: 3, data: new Float32Array(data.position) },
-            uv: { size: 2, data: new Float32Array(data.uv) },
-            normal: { size: 3, data: new Float32Array(data.normal) },
+        reader.onload = async function (e) {
+            let desc;
+            if (isGLB) {
+                desc = GLTFLoader.unpackGLB(e.target!.result as ArrayBuffer);
+            } else {
+                desc = JSON.parse(e.target!.result as string);
+            }
+            const dir = '';
+            gltf = await GLTFLoader.parse(gl, desc, dir);
+            addGLTF(gltf);
+        };
+    }
 
-            // simply add the 'instanced' property to flag as an instanced attribute.
-            // set the value as the divisor number
-            offset: { instanced: 1, size: 3, data: offset },
-            random: { instanced: 1, size: 3, data: random },
+    function addGLTF(gltf: GLTF) {
+        scene.children.forEach((child) => child.setParent(null));
+        console.log(gltf);
+
+        const s = gltf.scene || gltf.scenes[0];
+        s.forEach((root) => {
+            root.setParent(scene);
+            root.traverse((node: Transform) => {
+                if (node instanceof Mesh) {
+                    node.program = createProgram(node);
+                }
+            });
         });
 
-        mesh = new Mesh(gl, { geometry, program });
-        mesh.setParent(scene);
+        // Calculate world matrices for bounds
+        scene.updateMatrixWorld();
+
+        // Calculate rough world bounds to update camera
+        const min = new Vec3(+Infinity);
+        const max = new Vec3(-Infinity);
+        const center = new Vec3();
+        const scale = new Vec3();
+
+        const boundsMin = new Vec3();
+        const boundsMax = new Vec3();
+        const boundsCenter = new Vec3();
+        const boundsScale = new Vec3();
+
+        gltf.meshes.forEach((group) => {
+            group.primitives.forEach((mesh) => {
+                if (!mesh.parent) return; // Skip unattached
+
+                // TODO: for skins, go over joints, not mesh
+                // if (mesh instanceof GLTFSkin) return; // Skip skinned geometry
+                if (!mesh.geometry.bounds) mesh.geometry.computeBoundingSphere();
+
+                boundsCenter.copy(mesh.geometry.bounds.center).applyMatrix4(mesh.worldMatrix);
+
+                // Get max world scale axis
+                mesh.worldMatrix.getScaling(boundsScale);
+                const radiusScale = Math.max(Math.max(boundsScale[0], boundsScale[1]), boundsScale[2]);
+                const radius = mesh.geometry.bounds.radius * radiusScale;
+
+                boundsMin.set(-radius).add(boundsCenter);
+                boundsMax.set(+radius).add(boundsCenter);
+
+                // Apply world matrix to bounds
+                for (let i = 0; i < 3; i++) {
+                    min[i] = Math.min(min[i], boundsMin[i]);
+                    max[i] = Math.max(max[i], boundsMax[i]);
+                }
+            });
+        });
+        scale.sub(max, min);
+        const maxRadius = Math.max(Math.max(scale[0], scale[1]), scale[2]) * 0.5;
+        center.add(min, max).divide(2);
+
+        camera.position
+            .set(1, 0.5, -1)
+            .normalize()
+            .multiply(maxRadius * 2.5)
+            .add(center);
+        controls.target.copy(center);
+        controls.forcePosition();
+        const far = maxRadius * 5;
+        const near = far * 0.001;
+        camera.perspective({ near, far });
+    }
+
+    function createProgram(node: Mesh<Geometry, GLTFProgram>) {
+        const gltf = node.program.gltfMaterial || {};
+        let { vertex, fragment } = shader;
+
+        const vertexPrefix = renderer.isWebgl2
+            ? /* glsl */ `#version 300 es
+            #define attribute in
+            #define varying out
+            #define texture2D texture
+        `
+            : ``;
+
+        const fragmentPrefix = renderer.isWebgl2
+            ? /* glsl */ `#version 300 es
+            precision highp float;
+            #define varying in
+            #define texture2D texture
+            #define gl_FragColor FragColor
+            out vec4 FragColor;
+        `
+            : /* glsl */ `#extension GL_OES_standard_derivatives : enable
+            precision highp float;
+        `;
+
+        let defines = `
+            ${node.geometry.attributes.uv ? `#define UV` : ``}
+            ${node.geometry.attributes.normal ? `#define NORMAL` : ``}
+            ${node.geometry.isInstanced ? `#define INSTANCED` : ``}
+            ${(node as unknown as GLTFSkin).boneTexture ? `#define SKINNING` : ``}
+            ${gltf.alphaMode === 'MASK' ? `#define ALPHA_MASK` : ``}
+            ${gltf.baseColorTexture ? `#define COLOR_MAP` : ``}
+            ${gltf.normalTexture ? `#define NORMAL_MAP` : ``}
+            ${gltf.metallicRoughnessTexture ? `#define RM_MAP` : ``}
+            ${gltf.occlusionTexture ? `#define OCC_MAP` : ``}
+            ${gltf.emissiveTexture ? `#define EMISSIVE_MAP` : ``}
+        `;
+
+        vertex = vertexPrefix + defines + vertex;
+        fragment = fragmentPrefix + defines + fragment;
+
+        const program = new Program(gl, {
+            vertex,
+            fragment,
+            uniforms: {
+                uBaseColorFactor: { value: gltf.baseColorFactor || [1, 1, 1, 1] },
+                tBaseColor: { value: gltf.baseColorTexture ? gltf.baseColorTexture.texture : null },
+
+                tRM: { value: gltf.metallicRoughnessTexture ? gltf.metallicRoughnessTexture.texture : null },
+                uRoughness: { value: gltf.roughnessFactor !== undefined ? gltf.roughnessFactor : 1 },
+                uMetallic: { value: gltf.metallicFactor !== undefined ? gltf.metallicFactor : 1 },
+
+                tNormal: { value: gltf.normalTexture ? gltf.normalTexture.texture : null },
+                uNormalScale: { value: gltf.normalTexture ? gltf.normalTexture.scale || 1 : 1 },
+
+                tOcclusion: { value: gltf.occlusionTexture ? gltf.occlusionTexture.texture : null },
+
+                tEmissive: { value: gltf.emissiveTexture ? gltf.emissiveTexture.texture : null },
+                uEmissive: { value: gltf.emissiveFactor || [0, 0, 0] },
+
+                tLUT: { value: lutTexture },
+                tEnvDiffuse: { value: envDiffuseTexture },
+                tEnvSpecular: { value: envSpecularTexture },
+                uEnvDiffuse: { value: 0.5 },
+                uEnvSpecular: { value: 0.5 },
+
+                uLightDirection: { value: new Vec3(0, 1, 1) },
+                uLightColor: { value: new Vec3(2.5) },
+
+                uAlpha: { value: 1 },
+                uAlphaCutoff: { value: gltf.alphaCutoff },
+            },
+            transparent: gltf.alphaMode === 'BLEND',
+            cullFace: gltf.doubleSided ? false : gl.BACK,
+        });
+
+        return program;
     }
 
     requestAnimationFrame(update);
-    function update(t: DOMHighResTimeStamp) {
+    function update() {
         requestAnimationFrame(update);
 
-        if (mesh) mesh.rotation.y -= 0.005;
-        program.uniforms.uTime.value = t * 0.001;
-        renderer.render({ scene, camera });
+        controls.update();
+
+        // Play first animation
+        if (gltf && gltf.animations && gltf.animations.length) {
+            let { animation } = gltf.animations[0];
+            animation.elapsed += 0.01;
+            animation.update();
+        }
+
+        renderer.render({ scene, camera, sort: false, frustumCull: false });
     }
 }

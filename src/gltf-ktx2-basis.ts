@@ -118,7 +118,7 @@ const shader = {
 
             gl_Position = projectionMatrix * vMVPos;
         }
-        `,
+    `,
 
     fragment: /* glsl */ `
         uniform mat4 viewMatrix;
@@ -430,6 +430,7 @@ const shader = {
 
     function addGLTF(gltf: GLTF) {
         scene.children.forEach((child) => child.setParent(null));
+        console.log(gltf);
 
         const s = gltf.scene || gltf.scenes[0];
         s.forEach((root) => {
