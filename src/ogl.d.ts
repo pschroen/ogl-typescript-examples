@@ -802,6 +802,66 @@ declare module 'ogl' {
     }
 
     /**
+     * Axes helper.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/AxesHelper.js | Source}
+     */
+    export interface AxesHelperOptions {
+        size: number;
+        symmetric: boolean;
+        xColor: Color;
+        yColor: Color;
+        zColor: Color;
+    }
+
+    export class AxesHelper extends Mesh {
+        constructor(gl: OGLRenderingContext, options?: Partial<AxesHelperOptions>)
+    }
+
+    /**
+     * Vertex normals helper.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/VertexNormalsHelper.js | Source}
+     */
+    export interface VertexNormalsHelperOptions {
+        size: number;
+        color: Color;
+    }
+
+    export class VertexNormalsHelper extends Mesh {
+        constructor(object: Mesh, options?: Partial<VertexNormalsHelperOptions>)
+    }
+
+    /**
+     * Face normals helper.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/FaceNormalsHelper.js | Source}
+     */
+    export interface FaceNormalsHelperOptions {
+        size: number;
+        color: Color;
+    }
+
+    export class FaceNormalsHelper extends Mesh {
+        constructor(object: Mesh, options?: Partial<FaceNormalsHelperOptions>)
+    }
+
+    /**
+     * Grid helper.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/GridHelper.js | Source}
+     */
+    export interface GridHelperOptions {
+        size: number;
+        divisions: number;
+        color: Color;
+    }
+
+    export class GridHelper extends Mesh {
+        constructor(gl: OGLRenderingContext, options?: Partial<GridHelperOptions>)
+    }
+
+    /**
      * A polyline mesh.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Polyline.js | Source}
