@@ -1,94 +1,113 @@
-import { Renderer, Camera, Transform, Program, Mesh, Sphere, Box, Orbit, AxesHelper, VertexNormalsHelper, FaceNormalsHelper, GridHelper } from 'ogl';
+import { Renderer, Camera, Transform, Program, Mesh, Box } from 'ogl';
+
+declare global {
+    var setMeshCount: Function;
+}
 
 const vertex = /* glsl */ `
-        attribute vec3 position;
-        attribute vec3 normal;
+    attribute vec3 position;
+    attribute vec3 normal;
 
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
-        uniform mat3 normalMatrix;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
 
-        varying vec3 vNormal;
+    varying vec3 vNormal;
 
-        void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `;
+    void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
 
 const fragment = /* glsl */ `
-        precision highp float;
+    precision highp float;
 
-        varying vec3 vNormal;
+    varying vec3 vNormal;
 
-        void main() {
-            vec3 normal = normalize(vNormal);
-            float lighting = dot(normal, normalize(vec3(1.0, 1.0, 1.0)));
-            gl_FragColor.rgb = vec3(0.75) + lighting * 0.25;
-            gl_FragColor.a = 1.0;
-        }
-    `;
+    void main() {
+        vec3 normal = normalize(vNormal);
+        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
+        gl_FragColor.rgb = vec3(0.2, 0.8, 1.0) + lighting * 0.1;
+        gl_FragColor.a = 1.0;
+    }
+`;
 
 {
-    const renderer = new Renderer({ dpr: 2 });
+    const renderer = new Renderer();
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(1, 1, 7);
-    camera.lookAt([0, 0, 0]);
-    const controls = new Orbit(camera);
+    const camera = new Camera(gl, {fov: 35, far: 3000});
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
+        camera.perspective({aspect: gl.canvas.width / gl.canvas.height});
     }
     window.addEventListener('resize', resize, false);
     resize();
 
     const scene = new Transform();
 
-    const sphereGeometry = new Sphere(gl);
+    // Create base geometry
     const cubeGeometry = new Box(gl);
 
-    const program = new Program(gl, { vertex, fragment });
+    // Using the shader from the base primitive example
+    const program = new Program(gl, {
+        vertex,
+        fragment,
+    });
 
-    const sphere = new Mesh(gl, { geometry: sphereGeometry, program });
-    sphere.position.set(-0.75, 0.5, 0);
-    sphere.setParent(scene);
+    // mesh container
+    let meshes: Mesh[] = [];
 
-    const sphereVertNorms = new VertexNormalsHelper(sphere);
-    sphereVertNorms.setParent(scene);
+    globalThis.setMeshCount = function setMeshCount(count: number | string) {
 
-    const sphereFaceNorms = new FaceNormalsHelper(sphere);
-    sphereFaceNorms.setParent(scene);
+        // sanitize input
+        count = parseInt(count as string) || 1000;
 
-    const cube = new Mesh(gl, { geometry: cubeGeometry, program });
-    cube.position.set(0.75, 0.5, 0);
-    cube.setParent(scene);
+        // remove old meshes
+        for(let i = 0; i < meshes.length; ++i) scene.removeChild(meshes[i]);
+        meshes = [];
 
-    const cubeVertNorms = new VertexNormalsHelper(cube);
-    cubeVertNorms.setParent(scene);
+        // create our meshes according to input
+        for (let i = 0; i < count; ++i){
+            let mesh = new Mesh(gl, {geometry: cubeGeometry, program});
 
-    const cubeFaceNorms = new FaceNormalsHelper(cube);
-    cubeFaceNorms.setParent(scene);
+            // position meshes in a random position between -100 / +100 in each dimension
+            mesh.position.set(
+                -100 + Math.random() * 200,
+                -100 + Math.random() * 200,
+                -100 + Math.random() * 200
+            );
+            mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+            scene.addChild(mesh);
+            meshes.push(mesh)
+        }
 
-    const grid = new GridHelper(gl, { size: 10, divisions: 10 });
-    grid.position.y = -0.001; // shift down a little to avoid z-fighting with axes helper
-    grid.setParent(scene);
+        // set input counter value to make sure
+        // (document.getElementById('meshCountInput') as HTMLInputElement).value = count as unknown as string;
 
-    const axes = new AxesHelper(gl, { size: 6, symmetric: true });
-    axes.setParent(scene);
+    };
+
+    setMeshCount(1000);
 
     requestAnimationFrame(update);
-    function update(t: DOMHighResTimeStamp) {
+    function update() {
         requestAnimationFrame(update);
 
-        sphere.scale.y = Math.cos(t * 0.001) * 2;
-        cube.rotation.y -= 0.01;
+        // rotate camera
+        let time = performance.now() / 30000;
+        camera.position.set(Math.sin(time) * 180, 80, Math.cos(time) * 180);
+        camera.lookAt([0, 0, 0]);
 
-        controls.update();
-        renderer.render({ scene, camera });
+        // rotate meshes
+        for(let i = 0; i < meshes.length; ++i){
+            meshes[i].rotation.x += 0.01
+            meshes[i].rotation.y += 0.01
+        }
+
+        renderer.render({scene, camera});
     }
 }

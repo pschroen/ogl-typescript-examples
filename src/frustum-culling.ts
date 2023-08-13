@@ -1,11 +1,11 @@
 import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh, Vec3, Orbit, Cylinder, NormalProgram } from 'ogl';
 
 interface FrustumCamera extends Camera {
-    target: Vec3
+    target: Vec3;
 }
 
 interface CameraShape extends Mesh {
-    isCameraShape: boolean
+    isCameraShape: boolean;
 }
 
 const vertex = /* glsl */ `
