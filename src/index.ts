@@ -1,15 +1,12 @@
-import { Renderer, Camera, RenderTarget, Vec3, Transform, Program, Box, Mesh, NormalProgram } from 'ogl';
-import type { Vec3Tuple } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh } from 'ogl';
 
 const vertex = /* glsl */ `
     attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 normal;
 
     // Add instanced attributes just like any attribute
     attribute vec3 offset;
     attribute vec3 random;
-    attribute vec4 id;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
@@ -17,7 +14,6 @@ const vertex = /* glsl */ `
 
     varying vec2 vUv;
     varying vec3 vNormal;
-    varying vec4 vId;
 
     void rotate2d(inout vec2 v, float a){
         mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
@@ -26,8 +22,6 @@ const vertex = /* glsl */ `
 
     void main() {
         vUv = uv;
-        vId = id;
-        vNormal = normal;
 
         // copy position so that we can modify the instances
         vec3 pos = position;
@@ -37,6 +31,9 @@ const vertex = /* glsl */ `
 
         // rotate around y axis
         rotate2d(pos.xz, random.x * 6.28 + 4.0 * uTime * (random.y - 0.5));
+
+        // rotate around x axis just to add some extra variation
+        rotate2d(pos.zy, random.z * 0.5 * sin(uTime * random.x + random.z * 3.14));
 
         pos += offset;
 
@@ -48,23 +45,14 @@ const fragment = /* glsl */ `
     precision highp float;
 
     uniform float uTime;
-
-    // Re-use same program to render pick-texture
-    uniform bool uTargetRender;
+    uniform sampler2D tMap;
 
     varying vec2 vUv;
-    varying vec4 vId;
-    varying vec3 vNormal;
 
     void main() {
-        if (uTargetRender) {
-            gl_FragColor = vId;
-            return;
-        }
+        vec3 tex = texture2D(tMap, vUv).rgb;
 
-        vec3 normal = normalize(vNormal);
-        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
-        gl_FragColor.rgb = vec3(0.2, 0.8, 1.0) + lighting * 0.1;
+        gl_FragColor.rgb = tex;
         gl_FragColor.a = 1.0;
     }
 `;
@@ -78,145 +66,67 @@ const fragment = /* glsl */ `
     const camera = new Camera(gl, { fov: 15 });
     camera.position.z = 15;
 
-    let target: RenderTarget;
-
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
         camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
-        target = new RenderTarget(gl);
     }
     window.addEventListener('resize', resize, false);
     resize();
 
     const scene = new Transform();
 
+    const texture = new Texture(gl);
+    const img = new Image();
+    img.onload = () => (texture.image = img);
+    img.src = 'assets/acorn.jpg';
+
     const program = new Program(gl, {
         vertex,
         fragment,
         uniforms: {
             uTime: { value: 0 },
-            uTargetRender: { value: 0 },
+            tMap: { value: texture },
         },
     });
 
-    let mesh: Mesh,
-        highlight: Mesh,
-        objects: {
-            id: number,
-            offset: number[],
-            random: number[],
-        }[] = [];
-    {
+    let mesh: Mesh;
+    loadModel();
+    async function loadModel() {
+        const data = await (await fetch(`assets/acorn.json`)).json();
+
         const num = 20;
 
-        let offsetData = new Float32Array(num * 3);
-        let randomData = new Float32Array(num * 3);
-        let idData = new Float32Array(num * 4);
+        let offset = new Float32Array(num * 3);
+        let random = new Float32Array(num * 3);
         for (let i = 0; i < num; i++) {
-            const offset = [Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1];
-            offsetData.set(offset, i * 3);
+            offset.set([Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1], i * 3);
 
-            let id = i + 1;
-            idData.set(
-                [((id >> 0) & 0xff) / 0xff, ((id >> 8) & 0xff) / 0xff, ((id >> 16) & 0xff) / 0xff, ((id >> 24) & 0xff) / 0xff],
-                i * 4
-            );
-
-            const random = [Math.random(), Math.random(), Math.random()];
-            randomData.set(random, i * 3);
-
-            objects.push({ id, offset, random });
+            // unique random values are always handy for instances.
+            // Here they will be used for rotation, scale and movement.
+            random.set([Math.random(), Math.random(), Math.random()], i * 3);
         }
 
-        const geometry = new Box(gl, {
-            width: 0.2,
-            height: 0.2,
-            depth: 0.2,
-            attributes: {
-                offset: { instanced: 1, size: 3, data: offsetData },
-                random: { instanced: 1, size: 3, data: randomData },
-                // Add id data. This way we can recognize the instance later.
-                id: { instanced: 1, size: 4, data: idData },
-            },
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            normal: { size: 3, data: new Float32Array(data.normal) },
+
+            // simply add the 'instanced' property to flag as an instanced attribute.
+            // set the value as the divisor number
+            offset: { instanced: 1, size: 3, data: offset },
+            random: { instanced: 1, size: 3, data: random },
         });
 
         mesh = new Mesh(gl, { geometry, program });
         mesh.setParent(scene);
-
-        // Create a single non-instanced copy
-        highlight = new Mesh(gl, { geometry, program: new NormalProgram(gl) });
-        highlight.setParent(scene);
-        highlight.visible = false;
-    }
-
-    // Wrap in load event to prevent checks before page is ready
-    window.addEventListener(
-        'load',
-        () => {
-            document.addEventListener('mousemove', move, false);
-            document.addEventListener('touchmove', move, false);
-        },
-        false
-    );
-
-    const mouse = new Vec3();
-    function move(e: TouchEvent | MouseEvent) {
-        mouse.set(
-            ((e as MouseEvent).x * gl.canvas.width) / gl.canvas.clientWidth,
-            gl.canvas.height - ((e as MouseEvent).y * gl.canvas.height) / gl.canvas.clientHeight - 1
-        );
     }
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        if (!mesh) return;
-
-        let time = t * 0.001;
-        program.uniforms.uTime.value = time;
-
-        // Draw to texture
-        mesh.program.uniforms.uTargetRender.value = 1;
-        gl.clearColor(0, 0, 0, 0);
-
-        // Render ids to render target
-        renderer.render({ scene: mesh, camera, target });
-
-        // Read pixel data from target
-        const data = new Uint8Array(4);
-        gl.readPixels(
-            mouse.x, // x
-            mouse.y, // y
-            1, // width
-            1, // height
-            gl.RGBA, // format
-            gl.UNSIGNED_BYTE, // type
-            data
-        ); // typed array to hold result
-
-        // Transform color back to id
-        const id = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
-
-        if (id) {
-            // Restore same transformations as in shader
-            // but only for the higlighted item
-            let data = objects[id - 1];
-            let [rx, ry, rz] = data.random;
-            highlight.scale.set(0.9 + ry * 0.2).scale(1.005);
-            highlight.rotation.set(0);
-            highlight.rotation.y = rx * 6.28 + 4 * time * (ry - 0.5);
-            highlight.position.set(data.offset);
-            highlight.visible = true;
-        } else {
-            highlight.visible = false;
-        }
-
-        // Reset
-        mesh.program.uniforms.uTargetRender.value = 0;
-        program.uniforms.uTime.value = time;
-        gl.clearColor(1, 1, 1, 1);
-
+        if (mesh) mesh.rotation.y -= 0.005;
+        program.uniforms.uTime.value = t * 0.001;
         renderer.render({ scene, camera });
     }
 }
