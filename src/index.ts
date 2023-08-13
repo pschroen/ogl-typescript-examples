@@ -1,21 +1,17 @@
-import { Renderer, Camera, Transform, Program, Mesh, Box } from 'ogl';
-
-declare global {
-    var setMeshCount: Function;
-}
+import { Renderer, Camera, Transform, Geometry, Program, Mesh } from 'ogl';
 
 const vertex = /* glsl */ `
+    attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 normal;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
 
-    varying vec3 vNormal;
+    varying vec2 vUv;
 
     void main() {
-        vNormal = normalize(normalMatrix * normal);
+        vUv = uv;
+
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
@@ -23,12 +19,12 @@ const vertex = /* glsl */ `
 const fragment = /* glsl */ `
     precision highp float;
 
-    varying vec3 vNormal;
+    uniform float uTime;
+
+    varying vec2 vUv;
 
     void main() {
-        vec3 normal = normalize(vNormal);
-        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
-        gl_FragColor.rgb = vec3(0.2, 0.8, 1.0) + lighting * 0.1;
+        gl_FragColor.rgb = 0.5 + 0.3 * sin(vUv.yxx + uTime) + vec3(0.2, 0.0, 0.1);
         gl_FragColor.a = 1.0;
     }
 `;
@@ -39,75 +35,121 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, {fov: 35, far: 3000});
+    const camera = new Camera(gl, { fov: 15 });
+    camera.position.z = 15;
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.perspective({aspect: gl.canvas.width / gl.canvas.height});
+        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
     }
     window.addEventListener('resize', resize, false);
     resize();
 
     const scene = new Transform();
 
-    // Create base geometry
-    const cubeGeometry = new Box(gl);
+    // 4 vertices, using 6 indices to designate 2 triangles using the default gl.TRIANGLES draw mode
+    const indexedGeometry = new Geometry(gl, {
+        position: {
+            size: 3,
+            data: new Float32Array([
+                -0.5,
+                0.5,
+                0, // vertex 0
+                -0.5,
+                -0.5,
+                0, // vertex 1
+                0.5,
+                0.5,
+                0, // vertex 2
+                0.5,
+                -0.5,
+                0, // vertex 3
+            ]),
+        },
+        uv: {
+            size: 2,
+            data: new Float32Array([
+                0,
+                1, // vertex 0
+                1,
+                1, // vertex 1
+                0,
+                0, // vertex 2
+                1,
+                0, // vertex 3
+            ]),
+        },
 
-    // Using the shader from the base primitive example
+        // the indices attribute must use the name 'index' to be treated as an ELEMENT_ARRAY_BUFFER
+        index: { data: new Uint16Array([0, 1, 2, 1, 3, 2]) },
+    });
+
+    // To recreate the same square using non-indexed geometry, 6 vertices need to be passed in, including 2 duplicates.
+    // If only the original 4 vertices were supplied, only one triangle would be drawn.
+    const nonIndexedGeometry = new Geometry(gl, {
+        position: {
+            size: 3,
+            data: new Float32Array([
+                -0.5,
+                0.5,
+                0, // vertex 0
+                -0.5,
+                -0.5,
+                0, // vertex 1
+                0.5,
+                0.5,
+                0, // vertex 2
+                -0.5,
+                -0.5,
+                0, // vertex 1
+                0.5,
+                -0.5,
+                0, // vertex 3
+                0.5,
+                0.5,
+                0, // vertex 2
+            ]),
+        },
+        uv: {
+            size: 2,
+            data: new Float32Array([
+                0,
+                1, // vertex 0
+                1,
+                1, // vertex 1
+                0,
+                0, // vertex 2
+                1,
+                1, // vertex 1
+                1,
+                0, // vertex 3
+                0,
+                0, // vertex 2
+            ]),
+        },
+    });
+
     const program = new Program(gl, {
         vertex,
         fragment,
+        uniforms: {
+            uTime: { value: 0 },
+        },
     });
 
-    // mesh container
-    let meshes: Mesh[] = [];
+    const indexedMesh = new Mesh(gl, { geometry: indexedGeometry, program });
+    indexedMesh.setParent(scene);
+    indexedMesh.position.y = 0.9;
 
-    globalThis.setMeshCount = function setMeshCount(count: number | string) {
-
-        // sanitize input
-        count = parseInt(count as string) || 1000;
-
-        // remove old meshes
-        for(let i = 0; i < meshes.length; ++i) scene.removeChild(meshes[i]);
-        meshes = [];
-
-        // create our meshes according to input
-        for (let i = 0; i < count; ++i){
-            let mesh = new Mesh(gl, {geometry: cubeGeometry, program});
-
-            // position meshes in a random position between -100 / +100 in each dimension
-            mesh.position.set(
-                -100 + Math.random() * 200,
-                -100 + Math.random() * 200,
-                -100 + Math.random() * 200
-            );
-            mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-            scene.addChild(mesh);
-            meshes.push(mesh)
-        }
-
-        // set input counter value to make sure
-        // (document.getElementById('meshCountInput') as HTMLInputElement).value = count as unknown as string;
-
-    };
-
-    setMeshCount(1000);
+    const nonIndexedMesh = new Mesh(gl, { geometry: nonIndexedGeometry, program });
+    nonIndexedMesh.setParent(scene);
+    nonIndexedMesh.position.y = -0.9;
 
     requestAnimationFrame(update);
-    function update() {
+    function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        // rotate camera
-        let time = performance.now() / 30000;
-        camera.position.set(Math.sin(time) * 180, 80, Math.cos(time) * 180);
-        camera.lookAt([0, 0, 0]);
-
-        // rotate meshes
-        for(let i = 0; i < meshes.length; ++i){
-            meshes[i].rotation.x += 0.01
-            meshes[i].rotation.y += 0.01
-        }
-
-        renderer.render({scene, camera});
+        program.uniforms.uTime.value = t * 0.001;
+        renderer.render({ scene, camera });
     }
 }
