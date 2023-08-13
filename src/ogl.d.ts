@@ -28,9 +28,9 @@ declare module 'ogl' {
 
         fromQuaternion(q: Quat, order?: string): this;
 
-        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
+        fromArray(a: number[] | AttributeData, o?: number): this;
 
-        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
+        toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
     }
 
     /**
@@ -93,9 +93,9 @@ declare module 'ogl' {
 
         clone(): Vec2;
 
-        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
+        fromArray(a: number[] | AttributeData, o?: number): this;
 
-        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
+        toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
     }
 
     /**
@@ -166,9 +166,9 @@ declare module 'ogl' {
 
         clone(): Vec3;
 
-        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
+        fromArray(a: number[] | AttributeData, o?: number): this;
 
-        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
+        toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
 
         transformDirection(mat4: Mat4): this;
     }
@@ -269,9 +269,9 @@ declare module 'ogl' {
 
         determinant(): number;
 
-        fromArray(a: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): this;
+        fromArray(a: number[] | AttributeData, o?: number): this;
 
-        toArray(a?: Float32Array | Uint32Array | Uint16Array | Array<number>, o?: number): Float32Array | Uint32Array | Uint16Array | Array<number>;
+        toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
     }
 
     /**
@@ -476,8 +476,10 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
      */
+    export type AttributeData = Float32Array | Uint32Array | Uint16Array;
+
     export interface Attribute {
-        data: Float32Array | Uint32Array | Uint16Array;
+        data: AttributeData;
         size: number;
         instanced: null | number | boolean;
         type: GLenum;
