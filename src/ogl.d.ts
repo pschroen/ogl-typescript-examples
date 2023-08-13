@@ -1444,7 +1444,11 @@ declare module 'ogl' {
         size: number;
         coords: Float32Array;
         uniform: { value: any };
-        fbo: { read: RenderTarget; write: RenderTarget; swap: () => void };
+        fbo: {
+            read: RenderTarget;
+            write: RenderTarget;
+            swap: () => void;
+        };
 
         constructor(gl: OGLRenderingContext, options?: Partial<GPGPUOptions>);
 
@@ -1457,5 +1461,40 @@ declare module 'ogl' {
         }): GPGPUPass;
 
         render(): void;
+    }
+
+    /**
+     * Mouse flowmap.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Flowmap.js | Source}
+     */
+    export interface FlowmapOptions {
+        size: number;
+        falloff: number;
+        alpha: number;
+        dissipation: number;
+        type: number;
+    }
+
+    export class Flowmap {
+        gl: OGLRenderingContext;
+
+        uniform: { value: any };
+
+        mask: {
+            read: RenderTarget;
+            write: RenderTarget;
+            swap: () => void;
+        };
+
+        aspect: number;
+        mouse: Vec2;
+        velocity: Vec2;
+
+        mesh: Mesh;
+
+        constructor(gl: OGLRenderingContext, options?: Partial<FlowmapOptions>)
+
+        update(): void;
     }
 }
