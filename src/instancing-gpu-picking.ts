@@ -103,8 +103,8 @@ const fragment = /* glsl */ `
         highlight: Mesh,
         objects: {
             id: number,
-            offset: number[],
-            random: number[],
+            offset: Vec3Tuple,
+            random: Vec3Tuple,
         }[] = [];
     {
         const num = 20;
@@ -113,7 +113,7 @@ const fragment = /* glsl */ `
         let randomData = new Float32Array(num * 3);
         let idData = new Float32Array(num * 4);
         for (let i = 0; i < num; i++) {
-            const offset = [Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1];
+            const offset: Vec3Tuple = [Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1];
             offsetData.set(offset, i * 3);
 
             let id = i + 1;
@@ -122,7 +122,7 @@ const fragment = /* glsl */ `
                 i * 4
             );
 
-            const random = [Math.random(), Math.random(), Math.random()];
+            const random: Vec3Tuple = [Math.random(), Math.random(), Math.random()];
             randomData.set(random, i * 3);
 
             objects.push({ id, offset, random });
