@@ -1,22 +1,38 @@
-import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh, Vec3, Orbit } from 'ogl';
+import { Renderer, Camera, Geometry, Program, Mesh } from 'ogl';
 
 const vertex = /* glsl */ `
-    attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 normal;
+    attribute vec4 random;
 
-    uniform mat4 modelViewMatrix;
+    uniform mat4 modelMatrix;
+    uniform mat4 viewMatrix;
     uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
+    uniform float uTime;
 
-    varying vec2 vUv;
-    varying vec3 vNormal;
+    varying vec4 vRandom;
 
     void main() {
-        vUv = uv;
-        vNormal = normalize(normalMatrix * normal);
+        vRandom = random;
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        // positions are 0->1, so make -1->1
+        vec3 pos = position * 2.0 - 1.0;
+
+        // Scale towards camera to be more interesting
+        pos.z *= 10.0;
+
+        // modelMatrix is one of the automatically attached uniforms when using the Mesh class
+        vec4 mPos = modelMatrix * vec4(pos, 1.0);
+
+        // add some movement in world space
+        float t = uTime * 0.6;
+        mPos.x += sin(t * random.z + 6.28 * random.w) * mix(0.1, 1.5, random.x);
+        mPos.y += sin(t * random.y + 6.28 * random.x) * mix(0.1, 1.5, random.w);
+        mPos.z += sin(t * random.w + 6.28 * random.y) * mix(0.1, 1.5, random.z);
+
+        // get the model view position so that we can scale the points off into the distance
+        vec4 mvPos = viewMatrix * mPos;
+        gl_PointSize = 300.0 / length(mvPos.xyz) * (random.x + 0.1);
+        gl_Position = projectionMatrix * mvPos;
     }
 `;
 
@@ -24,40 +40,27 @@ const fragment = /* glsl */ `
     precision highp float;
 
     uniform float uTime;
-    uniform sampler2D tMap;
 
-    varying vec2 vUv;
-    varying vec3 vNormal;
+    varying vec4 vRandom;
 
     void main() {
-        vec3 normal = normalize(vNormal);
-        vec3 tex = texture2D(tMap, vUv).rgb;
+        vec2 uv = gl_PointCoord.xy;
 
-        vec3 light = normalize(vec3(0.5, 1.0, -0.3));
-        float shading = dot(normal, light) * 0.15;
-        gl_FragColor.rgb = tex + shading;
-        gl_FragColor.a = 1.0;
+        float circle = smoothstep(0.5, 0.4, length(uv - 0.5)) * 0.8;
+
+        gl_FragColor.rgb = 0.8 + 0.2 * sin(uv.yxx + uTime + vRandom.y * 6.28) + vec3(0.1, 0.0, 0.3);
+        gl_FragColor.a = circle;
     }
 `;
 
 {
-    const renderer = new Renderer({ dpr: 2 });
+    const renderer = new Renderer({ depth: false });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(-2, 1, 2);
-
-    // Create controls and pass parameters
-    const controls = new Orbit(camera, {
-        target: new Vec3(0, 0.7, 0),
-    });
-
-    /* document.querySelector('#dropdown')!.addEventListener('change', (e: Event) => {
-        const { value } = e.target as HTMLInputElement;
-        controls.zoomStyle = value;
-    }); */
+    const camera = new Camera(gl, { fov: 15 });
+    camera.position.z = 15;
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -66,43 +69,43 @@ const fragment = /* glsl */ `
     window.addEventListener('resize', resize, false);
     resize();
 
-    const scene = new Transform();
+    const num = 100;
+    const position = new Float32Array(num * 3);
+    const random = new Float32Array(num * 4);
 
-    const texture = new Texture(gl);
-    const img = new Image();
-    img.onload = () => (texture.image = img);
-    img.src = 'assets/macaw.jpg';
+    for (let i = 0; i < num; i++) {
+        position.set([Math.random(), Math.random(), Math.random()], i * 3);
+        random.set([Math.random(), Math.random(), Math.random(), Math.random()], i * 4);
+    }
+
+    const geometry = new Geometry(gl, {
+        position: { size: 3, data: position },
+        random: { size: 4, data: random },
+    });
 
     const program = new Program(gl, {
         vertex,
         fragment,
         uniforms: {
-            tMap: { value: texture },
+            uTime: { value: 0 },
         },
-        cullFace: false,
+        transparent: true,
+        depthTest: false,
     });
 
-    let mesh;
-    loadModel();
-    async function loadModel() {
-        const data = await (await fetch(`assets/macaw.json`)).json();
-
-        const geometry = new Geometry(gl, {
-            position: { size: 3, data: new Float32Array(data.position) },
-            uv: { size: 2, data: new Float32Array(data.uv) },
-            normal: { size: 3, data: new Float32Array(data.normal) },
-        });
-
-        mesh = new Mesh(gl, { geometry, program });
-        mesh.setParent(scene);
-    }
+    // Make sure mode is gl.POINTS
+    const particles = new Mesh(gl, { mode: gl.POINTS, geometry, program });
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        // Need to update controls every frame
-        controls.update();
-        renderer.render({ scene, camera });
+        // add some slight overall movement to be more interesting
+        particles.rotation.x = Math.sin(t * 0.0002) * 0.1;
+        particles.rotation.y = Math.cos(t * 0.0005) * 0.15;
+        particles.rotation.z += 0.01;
+
+        program.uniforms.uTime.value = t * 0.001;
+        renderer.render({ scene: particles, camera });
     }
 }
