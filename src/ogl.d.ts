@@ -644,6 +644,42 @@ declare module 'ogl' {
     }
 
     /**
+     * A text geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Text.js | Source}
+     */
+    export type TextAlign = 'left' | 'right' | 'center';
+
+    export type TextOptions = {
+        font: object;
+        text: string;
+        width: number;
+        align: TextAlign;
+        size: number;
+        letterSpacing: number;
+        lineHeight: number;
+        wordSpacing: number;
+        wordBreak: boolean;
+    };
+
+    export class Text {
+        buffers: {
+            position: Float32Array;
+            uv: Float32Array;
+            id: Float32Array;
+            index: Uint32Array | Uint16Array;
+        };
+        numLines: number;
+        height: number;
+        width: number;
+
+        constructor(parameters?: Partial<TextOptions>);
+
+        resize(options: {width: number}): void;
+
+        update(options: {text: string}): void;
+    }
+
+    /**
      * A WebGL program.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Program.js | Source}

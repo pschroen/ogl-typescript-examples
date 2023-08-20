@@ -1,194 +1,71 @@
-import {
-    Renderer,
-    Camera,
-    Transform,
-    Geometry,
-    Texture,
-    RenderTarget,
-    Program,
-    Mesh,
-    Vec3,
-    Orbit,
-    Triangle,
-} from 'ogl';
+import { Renderer, Camera, Transform, Geometry, Texture, Program, Mesh, Orbit, Text } from 'ogl';
 
-const vertex100 = /* glsl */ `
-    attribute vec3 position;
-    attribute vec3 normal;
+const vertex = /* glsl */ `
     attribute vec2 uv;
-    attribute vec3 offset;
-    attribute vec3 random;
+    attribute vec3 position;
 
-    uniform mat4 modelMatrix;
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
 
     varying vec2 vUv;
-    varying vec3 vNormal;
-    varying vec3 vMPos;
-
-    void rotate2d(inout vec2 v, float a){
-        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
-        v = m * v;
-    }
 
     void main() {
-        vec3 pos = position;
-        pos *= 0.8 + random.y * 0.3;
-        rotate2d(pos.xz, random.x * 6.28 + 4.0 * (random.y - 0.5));
-        rotate2d(pos.zy, random.z * 0.9 * sin(random.x + random.z * 3.14));
-        pos += offset * vec3(2.5, 0.2, 2.5);
-
         vUv = uv;
-        vNormal = normalize(normalMatrix * normal);
-        vMPos = (modelMatrix * vec4(pos, 1.0)).xyz;
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
 
-const fragment100 = /* glsl */ `
-    #extension GL_EXT_draw_buffers : require
-
-    precision highp float;
-
+const fragment = /* glsl */ `
     uniform sampler2D tMap;
 
     varying vec2 vUv;
-    varying vec3 vNormal;
-    varying vec3 vMPos;
 
     void main() {
-        gl_FragData[0] = texture2D(tMap, vUv);
-        gl_FragData[1] = vec4(vMPos, gl_FragCoord.z);
+        vec3 tex = texture2D(tMap, vUv).rgb;
+        float signedDist = max(min(tex.r, tex.g), min(max(tex.r, tex.g), tex.b)) - 0.5;
+        float d = fwidth(signedDist);
+        float alpha = smoothstep(-d, d, signedDist);
+
+        if (alpha < 0.01) discard;
+
+        gl_FragColor.rgb = vec3(0.0);
+        gl_FragColor.a = alpha;
     }
 `;
 
-const vertex300 = /* glsl */ `#version 300 es
-    in vec3 position;
-    in vec3 normal;
-    in vec2 uv;
-    in vec3 offset;
-    in vec3 random;
+const vertex100 =
+    /* glsl */ `
+` + vertex;
 
-    uniform mat4 modelMatrix;
-    uniform mat4 modelViewMatrix;
-    uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
-
-    out vec2 vUv;
-    out vec3 vNormal;
-    out vec3 vMPos;
-
-    void rotate2d(inout vec2 v, float a){
-        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
-        v = m * v;
-    }
-
-    void main() {
-        vec3 pos = position;
-        pos *= 0.8 + random.y * 0.3;
-        rotate2d(pos.xz, random.x * 6.28 + 4.0 * (random.y - 0.5));
-        rotate2d(pos.zy, random.z * 0.9 * sin(random.x + random.z * 3.14));
-        pos += offset * vec3(2.5, 0.2, 2.5);
-
-        vUv = uv;
-        vNormal = normalize(normalMatrix * normal);
-        vMPos = (modelMatrix * vec4(pos, 1.0)).xyz;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-    }
-`;
-
-const fragment300 = /* glsl */ `#version 300 es
+const fragment100 =
+    /* glsl */ `#extension GL_OES_standard_derivatives : enable
     precision highp float;
+` + fragment;
 
-    uniform sampler2D tMap;
+const vertex300 =
+    /* glsl */ `#version 300 es
+    #define attribute in
+    #define varying out
+` + vertex;
 
-    in vec2 vUv;
-    in vec3 vNormal;
-    in vec3 vMPos;
-
-    out vec4 FragData[2];
-
-    void main() {
-        FragData[0] = texture(tMap, vUv);
-        FragData[1] = vec4(vMPos, gl_FragCoord.z);
-    }
-`;
-
-const vertexPost = /* glsl */ `
-    attribute vec3 position;
-    attribute vec2 uv;
-
-    varying vec2 vUv;
-
-    void main() {
-        vUv = uv;
-        gl_Position = vec4(position, 1.0);
-    }
-`;
-
-const fragmentPost = /* glsl */ `
+const fragment300 =
+    /* glsl */ `#version 300 es
     precision highp float;
-
-    uniform sampler2D tColor;
-    uniform sampler2D tPosition;
-    uniform vec3 uLights[10];
-    uniform float uAspect;
-    uniform float uTime;
-
-    varying vec2 vUv;
-    varying vec3 vNormal;
-
-    void main() {
-
-        // Extract data from render targets
-        vec3 color = texture2D(tColor, vUv).rgb;
-        vec4 pos = texture2D(tPosition, vUv);
-        float depth = pos.a;
-
-        // Add lighting
-        vec3 lights = vec3(0);
-        for (int i = 0; i < 10; ++i) {
-            pos.xyz *= vec3(1, 0, 1);
-            vec3 l = uLights[i];
-
-            // Move lights around
-            vec3 lPos = sin(l.xyz * uTime + l.zyx * 6.28) * vec3(2, 0.5, 2);
-            float strength = max(0.0, 1.0 - length(pos.xyz - lPos));
-            lights = max(lights, (vec3(1) - normalize(l)) * strength);
-        }
-        color *= lights;
-
-        // Fade to black in distance
-        color = mix(color, vec3(0), smoothstep(0.8, 1.05, pow(depth, 3.0)));
-
-        gl_FragColor.rgb = color;
-        gl_FragColor.a = 1.0;
-
-        // Render raw render targets in corner
-        vec2 uv = gl_FragCoord.xy / vec2(250.0 * uAspect, 250.0);
-        if (uv.y < 1.0 && uv.x < 1.0) {
-            gl_FragColor.rgb = vec3(texture2D(tPosition, mod(uv, 1.0)).a);
-        } else if (uv.y < 2.0 && uv.x < 1.0) {
-            gl_FragColor.rgb = texture2D(tPosition, mod(uv, 1.0)).rgb;
-        } else if (uv.y < 3.0 && uv.x < 1.0) {
-            gl_FragColor.rgb = texture2D(tColor, mod(uv, 1.0)).rgb;
-        }
-    }
-`;
+    #define varying in
+    #define texture2D texture
+    #define gl_FragColor FragColor
+    out vec4 FragColor;
+` + fragment;
 
 {
     const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
-    // gl.clearColor(1, 1, 1, 1);
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(1, 1, 1, 1);
 
     const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(0, 2, 5);
+    camera.position.set(0, 0, 7);
 
     const controls = new Orbit(camera);
 
@@ -201,82 +78,68 @@ const fragmentPost = /* glsl */ `
 
     const scene = new Transform();
 
-    // Scene to render to targets
-    initScene();
+    /*
 
-    let supportLinearFiltering = gl.renderer.extensions[`OES_texture_${gl.renderer.isWebgl2 ? `` : `half_`}float_linear`];
+    Instructions to generate necessary MSDF assets
 
-    const target = new RenderTarget(gl, {
-        color: 2, // Number of render targets
+    Install msdf-bmfont https://github.com/soimy/msdf-bmfont-xml
+    `npm install msdf-bmfont-xml -g`
 
-        // Use half float to get accurate position values
-        type: gl.renderer.isWebgl2 ? (gl as WebGL2RenderingContext).HALF_FLOAT : gl.renderer.extensions['OES_texture_half_float'].HALF_FLOAT_OES,
-        internalFormat: gl.renderer.isWebgl2 ? (gl as WebGL2RenderingContext).RGBA16F : gl.RGBA,
-        minFilter: supportLinearFiltering ? gl.LINEAR : gl.NEAREST,
+    Then, using a font .ttf file, run the following (using 'FiraSans-Bold.ttf' as example)
+
+    `msdf-bmfont -f json -m 512,512 -d 2 --pot --smart-size FiraSans-Bold.ttf`
+
+    Outputs a .png bitmap spritesheet and a .json with character parameters.
+
+    */
+
+    const texture = new Texture(gl, {
+        generateMipmaps: false,
+    });
+    const img = new Image();
+    img.onload = () => (texture.image = img);
+    img.src = 'assets/fonts/FiraSans-Bold.png';
+
+    const program = new Program(gl, {
+        // Get fallback shader for WebGL1 - needed for OES_standard_derivatives ext
+        vertex: renderer.isWebgl2 ? vertex300 : vertex100,
+        fragment: renderer.isWebgl2 ? fragment300 : fragment100,
+        uniforms: {
+            tMap: { value: texture },
+        },
+        transparent: true,
+        cullFace: false,
+        depthWrite: false,
     });
 
-    // Mesh to render to canvas
-    const post = initPost();
+    loadText();
+    async function loadText() {
+        const font = await (await fetch('assets/fonts/FiraSans-Bold.json')).json();
 
-    async function initScene() {
-        const data = await (await fetch(`assets/acorn.json`)).json();
-
-        // Instanced buffers
-        const num = 100;
-        let offset = new Float32Array(num * 3);
-        let random = new Float32Array(num * 3);
-        for (let i = 0; i < num; i++) {
-            offset.set([Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1], i * 3);
-            random.set([Math.random(), Math.random(), Math.random()], i * 3);
-        }
-
-        const geometry = new Geometry(gl, {
-            position: { size: 3, data: new Float32Array(data.position) },
-            uv: { size: 2, data: new Float32Array(data.uv) },
-            normal: { size: 3, data: new Float32Array(data.normal) },
-            offset: { instanced: 1, size: 3, data: offset },
-            random: { instanced: 1, size: 3, data: random },
+        const text = new Text({
+            font,
+            text: "don't panic",
+            width: 4,
+            align: 'center',
+            letterSpacing: -0.05,
+            size: 1,
+            lineHeight: 1.1,
         });
 
-        const texture = new Texture(gl);
-        const img = new Image();
-        img.onload = () => (texture.image = img);
-        img.src = 'assets/acorn.jpg';
-
-        const program = new Program(gl, {
-            vertex: renderer.isWebgl2 ? vertex300 : vertex100,
-            fragment: renderer.isWebgl2 ? fragment300 : fragment100,
-            uniforms: {
-                tMap: { value: texture },
-            },
+        // Pass the generated buffers into a geometry
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: text.buffers.position },
+            uv: { size: 2, data: text.buffers.uv },
+            // id provides a per-character index, for effects that may require it
+            id: { size: 1, data: text.buffers.id },
+            index: { data: text.buffers.index },
         });
 
         const mesh = new Mesh(gl, { geometry, program });
+
+        // Use the height value to position text vertically. Here it is centered.
+        mesh.position.y = text.height * 0.5;
         mesh.setParent(scene);
-    }
-
-    function initPost() {
-        const geometry = new Triangle(gl);
-
-        // Create 10 random lights
-        const lights = [];
-        for (let i = 0; i < 10; i++) {
-            lights.push(new Vec3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1));
-        }
-
-        const program = new Program(gl, {
-            vertex: vertexPost,
-            fragment: fragmentPost,
-            uniforms: {
-                tColor: { value: target.textures[0] },
-                tPosition: { value: target.textures[1] },
-                uLights: { value: lights },
-                uAspect: { value: 1 },
-                uTime: { value: 0 },
-            },
-        });
-
-        return new Mesh(gl, { geometry, program });
     }
 
     requestAnimationFrame(update);
@@ -284,15 +147,6 @@ const fragmentPost = /* glsl */ `
         requestAnimationFrame(update);
 
         controls.update();
-
-        // Render scene to targets
-        renderer.render({ scene, camera, target });
-
-        // Update resolution
-        post.program.uniforms.uAspect.value = renderer.width / renderer.height;
-        post.program.uniforms.uTime.value = t * 0.001;
-
-        // Render post to canvas
-        renderer.render({ scene: post });
+        renderer.render({ scene, camera });
     }
 }
