@@ -1,46 +1,182 @@
-import { Renderer, Program, Texture, Mesh, Vec2, Flowmap, Triangle } from 'ogl';
+import {
+    Renderer,
+    Camera,
+    Transform,
+    Geometry,
+    Texture,
+    RenderTarget,
+    Program,
+    Mesh,
+    Vec3,
+    Orbit,
+    Triangle,
+} from 'ogl';
 
-interface VelocityVec2 extends Vec2 {
-    needsUpdate: boolean;
-}
-
-const vertex = /* glsl */ `
+const vertex100 = /* glsl */ `
+    attribute vec3 position;
+    attribute vec3 normal;
     attribute vec2 uv;
-    attribute vec2 position;
+    attribute vec3 offset;
+    attribute vec3 random;
+
+    uniform mat4 modelMatrix;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vMPos;
+
+    void rotate2d(inout vec2 v, float a){
+        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
+        v = m * v;
+    }
+
+    void main() {
+        vec3 pos = position;
+        pos *= 0.8 + random.y * 0.3;
+        rotate2d(pos.xz, random.x * 6.28 + 4.0 * (random.y - 0.5));
+        rotate2d(pos.zy, random.z * 0.9 * sin(random.x + random.z * 3.14));
+        pos += offset * vec3(2.5, 0.2, 2.5);
+
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vMPos = (modelMatrix * vec4(pos, 1.0)).xyz;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+`;
+
+const fragment100 = /* glsl */ `
+    #extension GL_EXT_draw_buffers : require
+
+    precision highp float;
+
+    uniform sampler2D tMap;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vMPos;
+
+    void main() {
+        gl_FragData[0] = texture2D(tMap, vUv);
+        gl_FragData[1] = vec4(vMPos, gl_FragCoord.z);
+    }
+`;
+
+const vertex300 = /* glsl */ `#version 300 es
+    in vec3 position;
+    in vec3 normal;
+    in vec2 uv;
+    in vec3 offset;
+    in vec3 random;
+
+    uniform mat4 modelMatrix;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+
+    out vec2 vUv;
+    out vec3 vNormal;
+    out vec3 vMPos;
+
+    void rotate2d(inout vec2 v, float a){
+        mat2 m = mat2(cos(a), -sin(a), sin(a),  cos(a));
+        v = m * v;
+    }
+
+    void main() {
+        vec3 pos = position;
+        pos *= 0.8 + random.y * 0.3;
+        rotate2d(pos.xz, random.x * 6.28 + 4.0 * (random.y - 0.5));
+        rotate2d(pos.zy, random.z * 0.9 * sin(random.x + random.z * 3.14));
+        pos += offset * vec3(2.5, 0.2, 2.5);
+
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vMPos = (modelMatrix * vec4(pos, 1.0)).xyz;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+`;
+
+const fragment300 = /* glsl */ `#version 300 es
+    precision highp float;
+
+    uniform sampler2D tMap;
+
+    in vec2 vUv;
+    in vec3 vNormal;
+    in vec3 vMPos;
+
+    out vec4 FragData[2];
+
+    void main() {
+        FragData[0] = texture(tMap, vUv);
+        FragData[1] = vec4(vMPos, gl_FragCoord.z);
+    }
+`;
+
+const vertexPost = /* glsl */ `
+    attribute vec3 position;
+    attribute vec2 uv;
 
     varying vec2 vUv;
 
     void main() {
         vUv = uv;
-        gl_Position = vec4(position, 0, 1);
+        gl_Position = vec4(position, 1.0);
     }
 `;
 
-const fragment = /* glsl */ `
+const fragmentPost = /* glsl */ `
     precision highp float;
 
-    uniform sampler2D tWater;
-    uniform sampler2D tFlow;
+    uniform sampler2D tColor;
+    uniform sampler2D tPosition;
+    uniform vec3 uLights[10];
+    uniform float uAspect;
     uniform float uTime;
 
     varying vec2 vUv;
+    varying vec3 vNormal;
 
     void main() {
 
-        // R and G values are velocity in the x and y direction
-        // B value is the velocity length
-        vec3 flow = texture2D(tFlow, vUv).rgb;
+        // Extract data from render targets
+        vec3 color = texture2D(tColor, vUv).rgb;
+        vec4 pos = texture2D(tPosition, vUv);
+        float depth = pos.a;
 
-        // Use flow to adjust the uv lookup of a texture
-        vec2 uv = gl_FragCoord.xy / 600.0;
-        uv += flow.xy * 0.05;
-        vec3 tex = texture2D(tWater, uv).rgb;
+        // Add lighting
+        vec3 lights = vec3(0);
+        for (int i = 0; i < 10; ++i) {
+            pos.xyz *= vec3(1, 0, 1);
+            vec3 l = uLights[i];
 
-        // Oscillate between raw values and the affected texture above
-        tex = mix(tex, flow * 0.5 + 0.5, smoothstep( -0.3, 0.7, sin(uTime)));
+            // Move lights around
+            vec3 lPos = sin(l.xyz * uTime + l.zyx * 6.28) * vec3(2, 0.5, 2);
+            float strength = max(0.0, 1.0 - length(pos.xyz - lPos));
+            lights = max(lights, (vec3(1) - normalize(l)) * strength);
+        }
+        color *= lights;
 
-        gl_FragColor.rgb = tex;
+        // Fade to black in distance
+        color = mix(color, vec3(0), smoothstep(0.8, 1.05, pow(depth, 3.0)));
+
+        gl_FragColor.rgb = color;
         gl_FragColor.a = 1.0;
+
+        // Render raw render targets in corner
+        vec2 uv = gl_FragCoord.xy / vec2(250.0 * uAspect, 250.0);
+        if (uv.y < 1.0 && uv.x < 1.0) {
+            gl_FragColor.rgb = vec3(texture2D(tPosition, mod(uv, 1.0)).a);
+        } else if (uv.y < 2.0 && uv.x < 1.0) {
+            gl_FragColor.rgb = texture2D(tPosition, mod(uv, 1.0)).rgb;
+        } else if (uv.y < 3.0 && uv.x < 1.0) {
+            gl_FragColor.rgb = texture2D(tColor, mod(uv, 1.0)).rgb;
+        }
     }
 `;
 
@@ -48,118 +184,115 @@ const fragment = /* glsl */ `
     const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
+    // gl.clearColor(1, 1, 1, 1);
+    gl.clearColor(0, 0, 0, 1);
 
-    // Variable inputs to control flowmap
-    let aspect = 1;
-    const mouse = new Vec2(-1);
-    const velocity = new Vec2() as VelocityVec2;
+    const camera = new Camera(gl, { fov: 45 });
+    camera.position.set(0, 2, 5);
+
+    const controls = new Orbit(camera);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
-        aspect = window.innerWidth / window.innerHeight;
+        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
     }
     window.addEventListener('resize', resize, false);
     resize();
 
-    const flowmap = new Flowmap(gl);
+    const scene = new Transform();
 
-    // Triangle that includes -1 to 1 range for 'position', and 0 to 1 range for 'uv'.
-    const geometry = new Triangle(gl);
+    // Scene to render to targets
+    initScene();
 
-    const texture = new Texture(gl, { wrapS: gl.REPEAT, wrapT: gl.REPEAT });
-    const img = new Image();
-    img.onload = () => (texture.image = img);
-    img.src = 'assets/water.jpg';
+    let supportLinearFiltering = gl.renderer.extensions[`OES_texture_${gl.renderer.isWebgl2 ? `` : `half_`}float_linear`];
 
-    const program = new Program(gl, {
-        vertex,
-        fragment,
-        uniforms: {
-            uTime: { value: 0 },
-            tWater: { value: texture },
+    const target = new RenderTarget(gl, {
+        color: 2, // Number of render targets
 
-            // Note that the uniform is applied without using an object and value property
-            // This is because the class alternates this texture between two render targets
-            // and updates the value property after each render.
-            tFlow: flowmap.uniform,
-        },
+        // Use half float to get accurate position values
+        type: gl.renderer.isWebgl2 ? (gl as WebGL2RenderingContext).HALF_FLOAT : gl.renderer.extensions['OES_texture_half_float'].HALF_FLOAT_OES,
+        internalFormat: gl.renderer.isWebgl2 ? (gl as WebGL2RenderingContext).RGBA16F : gl.RGBA,
+        minFilter: supportLinearFiltering ? gl.LINEAR : gl.NEAREST,
     });
 
-    const mesh = new Mesh(gl, { geometry, program });
+    // Mesh to render to canvas
+    const post = initPost();
 
-    // Create handlers to get mouse position and velocity
-    const isTouchCapable = 'ontouchstart' in window;
-    if (isTouchCapable) {
-        window.addEventListener('touchstart', updateMouse, false);
-        window.addEventListener('touchmove', updateMouse, false);
-    } else {
-        window.addEventListener('mousemove', updateMouse, false);
+    async function initScene() {
+        const data = await (await fetch(`assets/acorn.json`)).json();
+
+        // Instanced buffers
+        const num = 100;
+        let offset = new Float32Array(num * 3);
+        let random = new Float32Array(num * 3);
+        for (let i = 0; i < num; i++) {
+            offset.set([Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1], i * 3);
+            random.set([Math.random(), Math.random(), Math.random()], i * 3);
+        }
+
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            normal: { size: 3, data: new Float32Array(data.normal) },
+            offset: { instanced: 1, size: 3, data: offset },
+            random: { instanced: 1, size: 3, data: random },
+        });
+
+        const texture = new Texture(gl);
+        const img = new Image();
+        img.onload = () => (texture.image = img);
+        img.src = 'assets/acorn.jpg';
+
+        const program = new Program(gl, {
+            vertex: renderer.isWebgl2 ? vertex300 : vertex100,
+            fragment: renderer.isWebgl2 ? fragment300 : fragment100,
+            uniforms: {
+                tMap: { value: texture },
+            },
+        });
+
+        const mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(scene);
     }
 
-    let lastTime: number;
-    const lastMouse = new Vec2();
-    function updateMouse(e: TouchEvent | MouseEvent) {
-        let x!: number;
-        let y!: number;
-        if ((e as TouchEvent).changedTouches && (e as TouchEvent).changedTouches.length) {
-            x = (e as TouchEvent).changedTouches[0].pageX;
-            y = (e as TouchEvent).changedTouches[0].pageY;
-        }
-        if (x === undefined) {
-            x = (e as MouseEvent).pageX;
-            y = (e as MouseEvent).pageY;
+    function initPost() {
+        const geometry = new Triangle(gl);
+
+        // Create 10 random lights
+        const lights = [];
+        for (let i = 0; i < 10; i++) {
+            lights.push(new Vec3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1));
         }
 
-        // Get mouse value in 0 to 1 range, with y flipped
-        mouse.set(x / gl.renderer.width, 1.0 - y / gl.renderer.height);
+        const program = new Program(gl, {
+            vertex: vertexPost,
+            fragment: fragmentPost,
+            uniforms: {
+                tColor: { value: target.textures[0] },
+                tPosition: { value: target.textures[1] },
+                uLights: { value: lights },
+                uAspect: { value: 1 },
+                uTime: { value: 0 },
+            },
+        });
 
-        // Calculate velocity
-        if (!lastTime) {
-            // First frame
-            lastTime = performance.now();
-            lastMouse.set(x, y);
-        }
-
-        const deltaX = x - lastMouse.x;
-        const deltaY = y - lastMouse.y;
-
-        lastMouse.set(x, y);
-
-        let time = performance.now();
-
-        // Avoid dividing by 0
-        let delta = Math.max(14, time - lastTime);
-        lastTime = time;
-
-        velocity.x = deltaX / delta;
-        velocity.y = deltaY / delta;
-
-        // Flag update to prevent hanging velocity values when not moving
-        velocity.needsUpdate = true;
+        return new Mesh(gl, { geometry, program });
     }
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        // Reset velocity when mouse not moving
-        if (!velocity.needsUpdate) {
-            mouse.set(-1);
-            velocity.set(0);
-        }
-        velocity.needsUpdate = false;
+        controls.update();
 
-        // Update flowmap inputs
-        flowmap.aspect = aspect;
-        flowmap.mouse.copy(mouse);
+        // Render scene to targets
+        renderer.render({ scene, camera, target });
 
-        // Ease velocity input, slower when fading out
-        flowmap.velocity.lerp(velocity, velocity.len() ? 0.5 : 0.1);
+        // Update resolution
+        post.program.uniforms.uAspect.value = renderer.width / renderer.height;
+        post.program.uniforms.uTime.value = t * 0.001;
 
-        flowmap.update();
-
-        program.uniforms.uTime.value = t * 0.001;
-
-        renderer.render({ scene: mesh });
+        // Render post to canvas
+        renderer.render({ scene: post });
     }
 }
