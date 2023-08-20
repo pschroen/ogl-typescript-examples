@@ -1,176 +1,178 @@
-import { Renderer, Camera, Vec3, Orbit, Sphere, Transform, Program, Mesh, Texture } from 'ogl';
+import { Renderer, Transform, Vec3, Color, Polyline } from 'ogl';
 
-const VERTEX_SHADER = /* glsl */ `
-    attribute vec2 uv;
-    attribute vec3 position;
-    attribute vec3 normal;
+interface LineSpringMovement {
+    spring: number;
+    friction: number;
+    mouseVelocity: Vec3;
+    mouseOffset: Vec3;
+    points?: Vec3[];
+    polyline?: Polyline;
+}
 
-    uniform mat4 modelMatrix;
-    uniform mat4 modelViewMatrix;
-    uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
-
-    uniform vec3 u_lightWorldPosition;
-    uniform vec3 cameraPosition;
-
-    varying vec3 v_normal;
-    varying vec3 v_surfaceToLight;
-    varying vec3 v_surfaceToView;
-    varying vec2 v_uv;
-
-    void main() {
-
-        // Pass UV information to Fragment Shader
-        v_uv = uv;
-
-        // Calculate World Space Normal
-        v_normal = normalMatrix * normal;
-
-        // Compute the world position of the surface
-        vec3 surfaceWorldPosition = mat3(modelMatrix) * position;
-
-        // Vector from the surface, to the light
-        v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
-
-        // Vector from the surface, to the camera
-        v_surfaceToView = cameraPosition - surfaceWorldPosition;
-
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-`;
-
-const FRAGMENT_SHADER = /* glsl */ `
+const vertex = /* glsl */ `
     precision highp float;
 
-    varying vec3 v_normal;
-    varying vec3 v_surfaceToLight;
-    varying vec3 v_surfaceToView;
-    varying vec2 v_uv;
+    attribute vec3 position;
+    attribute vec3 next;
+    attribute vec3 prev;
+    attribute vec2 uv;
+    attribute float side;
 
-    uniform float u_dt;
-    uniform float u_shininess;
-    uniform sampler2D colMap;
-    uniform sampler2D specMap;
-    uniform sampler2D cloudMap;
+    uniform vec2 uResolution;
+    uniform float uDPR;
+    uniform float uThickness;
+
+    vec4 getPosition() {
+        vec4 current = vec4(position, 1);
+
+        vec2 aspect = vec2(uResolution.x / uResolution.y, 1);
+        vec2 nextScreen = next.xy * aspect;
+        vec2 prevScreen = prev.xy * aspect;
+
+        // Calculate the tangent direction
+        vec2 tangent = normalize(nextScreen - prevScreen);
+
+        // Rotate 90 degrees to get the normal
+        vec2 normal = vec2(-tangent.y, tangent.x);
+        normal /= aspect;
+
+        // Taper the line to be fatter in the middle, and skinny at the ends using the uv.y
+        normal *= mix(1.0, 0.1, pow(abs(uv.y - 0.5) * 2.0, 2.0) );
+
+        // When the points are on top of each other, shrink the line to avoid artifacts.
+        float dist = length(nextScreen - prevScreen);
+        normal *= smoothstep(0.0, 0.02, dist);
+
+        float pixelWidthRatio = 1.0 / (uResolution.y / uDPR);
+        float pixelWidth = current.w * pixelWidthRatio;
+        normal *= pixelWidth * uThickness;
+        current.xy -= normal * side;
+
+        return current;
+    }
 
     void main() {
-
-        // Re-normalize interpolated varyings
-        vec3 normal = normalize(v_normal);
-        vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
-        vec3 surfaceToViewDirection = normalize(v_surfaceToView);
-
-        // Calculate Half-Vector, Vector that bisects the angle of reflection.
-        // This vector indecates the "brightest point"; A "refrence vector" if you will.
-        vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
-
-        // Then we can get the brightness at any point by seeing "how similar"
-        // the surface normal is to the refrence vector.
-        float light = dot(normal, surfaceToLightDirection);
-
-        // By raising the specular vector to a power we can control the intensity
-        // of the light
-        float specular = 0.0;
-        if (light > 0.0) {
-            specular = pow(dot(normal, halfVector), u_shininess * 100.0);
-        }
-
-        // Mapping textures
-        vec3 colMap = texture2D(colMap, v_uv).rgb;
-        vec3 spec = texture2D(specMap, v_uv).rgb;
-
-        vec2 cloudUV = vec2(v_uv.x + u_dt, v_uv.y);
-        vec3 cloud = texture2D(cloudMap, cloudUV).rgb;
-
-        gl_FragColor.rgb = colMap + cloud;
-
-        // Add Point Lighting
-        gl_FragColor.rgb *= light;
-
-        // Add Specular Highlights
-        gl_FragColor.rgb += specular * spec;
+        gl_Position = getPosition();
     }
 `;
 
 {
-    const renderer = new Renderer();
+    const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
-    gl.clearColor(0.05, 0.05, 0.05, 1);
+    gl.clearColor(0.9, 0.9, 0.9, 1);
 
-    const camera = new Camera(gl);
-    camera.position.set(0, 0, 2);
+    const scene = new Transform();
 
-    const controls = new Orbit(camera, {
-        target: new Vec3(0, 0, 0),
-    });
+    const lines: LineSpringMovement[] = [];
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.perspective({
-            aspect: gl.canvas.width / gl.canvas.height,
-        });
+
+        // We call resize on the polylines to update their resolution uniforms
+        lines.forEach((line) => line.polyline!.resize());
     }
     window.addEventListener('resize', resize, false);
+
+    // Just a helper function to make the code neater
+    function random(a: number, b: number) {
+        const alpha = Math.random();
+        return a * (1.0 - alpha) + b * alpha;
+    }
+
+    // If you're interested in learning about drawing lines with geometry,
+    // go through this detailed article by Matt DesLauriers
+    // https://mattdesl.svbtle.com/drawing-lines-is-hard
+    // It's an excellent breakdown of the approaches and their pitfalls.
+
+    // In this example, we're making screen-space polylines. Basically it
+    // involves creating a geometry of vertices along a path - with two vertices
+    // at each point. Then in the vertex shader, we push each pair apart to
+    // give the line some width.
+
+    // We're going to make a number of different coloured lines for fun.
+    ['#e09f7d', '#ef5d60', '#ec4067', '#a01a7d', '#311847'].forEach((color, i) => {
+        // Store a few values for each lines' spring movement
+        const line: LineSpringMovement = {
+            spring: random(0.02, 0.1),
+            friction: random(0.7, 0.95),
+            mouseVelocity: new Vec3(),
+            mouseOffset: new Vec3(random(-1, 1) * 0.02),
+        };
+
+        // Create an array of Vec3s (eg [[0, 0, 0], ...])
+        // Note: Only pass in one for each point on the line - the class will handle
+        // the doubling of vertices for the polyline effect.
+        const count = 20;
+        const points: Vec3[] = (line.points = []);
+        for (let i = 0; i < count; i++) points.push(new Vec3());
+
+        // Pass in the points, and any custom elements - for example here we've made
+        // custom shaders, and accompanying uniforms.
+        line.polyline = new Polyline(gl, {
+            points,
+            vertex,
+            uniforms: {
+                uColor: { value: new Color(color) },
+                uThickness: { value: random(20, 50) },
+            },
+        });
+
+        line.polyline.mesh.setParent(scene);
+
+        lines.push(line);
+    });
+
+    // Call initial resize after creating the polylines
     resize();
 
-    const scene = new Transform();
-    const geometry = new Sphere(gl, { widthSegments: 64 });
+    // Add handlers to get mouse position
+    const mouse = new Vec3();
+    if ('ontouchstart' in window) {
+        window.addEventListener('touchstart', updateMouse, false);
+        window.addEventListener('touchmove', updateMouse, false);
+    } else {
+        window.addEventListener('mousemove', updateMouse, false);
+    }
 
-    // Make A point Light
-    const light = new Vec3(20, 30, 60);
+    function updateMouse(e: TouchEvent | MouseEvent) {
+        let x!: number;
+        let y!: number;
+        if ((e as TouchEvent).changedTouches && (e as TouchEvent).changedTouches.length) {
+            x = (e as TouchEvent).changedTouches[0].pageX;
+            y = (e as TouchEvent).changedTouches[0].pageY;
+        }
+        if (x === undefined) {
+            x = (e as MouseEvent).pageX;
+            y = (e as MouseEvent).pageY;
+        }
 
-    // Color Map
-    const colMap = new Texture(gl);
-    const img = new Image();
-    img.onload = () => (colMap.image = img);
-    img.src = 'assets/earth.jpg';
+        // Get mouse value in -1 to 1 range, with y flipped
+        mouse.set((x / gl.renderer.width) * 2 - 1, (y / gl.renderer.height) * -2 + 1, 0);
+    }
 
-    // Specular Map
-    const specMap = new Texture(gl);
-    const specMap_img = new Image();
-    specMap_img.onload = () => (specMap.image = specMap_img);
-    specMap_img.src = 'assets/earth_specular.jpg';
-
-    // Cloud Map
-    const cloudMap = new Texture(gl, { wrapS: gl.REPEAT, wrapT: gl.REPEAT });
-    const cloudMap_img = new Image();
-    cloudMap_img.onload = () => (cloudMap.image = cloudMap_img);
-    cloudMap_img.src = 'assets/earth_cloud.jpg';
-
-    const program = new Program(gl, {
-        vertex: VERTEX_SHADER,
-        fragment: FRAGMENT_SHADER,
-        uniforms: {
-            u_dt: { value: 0 },
-            u_lightWorldPosition: { value: light }, // Position of the Light
-            u_shininess: { value: 1.5 },
-            colMap: { value: colMap }, // Color Map
-            specMap: { value: specMap }, // Specular Map
-            cloudMap: { value: cloudMap }, // Cloud Map
-        },
-    });
-
-    const mesh = new Mesh(gl, { geometry, program });
-    mesh.setParent(scene);
-
-    document.addEventListener('mousemove', (e) => {
-        const cords = {
-            x: e.x - window.innerWidth / 2,
-            y: e.y - window.innerHeight / 2,
-        };
-        program.uniforms.u_lightWorldPosition.value = [cords.x, -cords.y, 40];
-    });
+    const tmp = new Vec3();
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        mesh.rotation.y += 0.005;
+        lines.forEach((line) => {
+            // Update polyline input points
+            for (let i = line.points!.length - 1; i >= 0; i--) {
+                if (!i) {
+                    // For the first point, spring ease it to the mouse position
+                    tmp.copy(mouse).add(line.mouseOffset).sub(line.points![i]).multiply(line.spring);
+                    line.mouseVelocity.add(tmp).multiply(line.friction);
+                    line.points![i].add(line.mouseVelocity);
+                } else {
+                    // The rest of the points ease to the point in front of them, making a line
+                    line.points![i].lerp(line.points![i - 1], 0.9);
+                }
+            }
+            line.polyline!.updateGeometry();
+        });
 
-        program.uniforms.u_dt.value = -t * 0.00002;
-
-        controls.update();
-        renderer.render({ scene, camera });
+        renderer.render({ scene });
     }
 }
