@@ -54,10 +54,10 @@ const fragment = /* glsl */ `
         target: new Vec3(0, 0.7, 0),
     });
 
-    /* document.querySelector('#dropdown')!.addEventListener('change', (e: Event) => {
+    document.querySelector('#dropdown')!.addEventListener('change', (e: Event) => {
         const { value } = e.target as HTMLInputElement;
         controls.zoomStyle = value;
-    }); */
+    });
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);

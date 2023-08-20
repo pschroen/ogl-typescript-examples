@@ -82,8 +82,8 @@ const fragment = /* glsl */ `
 
     mesh.setParent(scene);
 
-    gl.canvas.addEventListener('mousemove', (event) => {
-        const x = (2 * event.x) / gl.canvas.width;
+    gl.canvas.addEventListener('mousemove', (e) => {
+        const x = (2 * e.x) / gl.canvas.width;
         program.uniforms.fSlide.value = x;
     });
 
