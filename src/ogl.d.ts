@@ -113,9 +113,7 @@ declare module 'ogl' {
         set x(v: number);
         set y(v: number);
         set z(v: number);
-        set(x?: number, y?: number, z?: number): this;
-        set(v: Vec3): this;
-        set(a: Vec3Tuple): this;
+        set(x: number | Vec3 | Vec3Tuple, y?: number, z?: number): this;
         copy(v: Vec3): this;
         add(va: Vec3, vb?: Vec3): this;
         sub(va: Vec3, vb?: Vec3): this;
