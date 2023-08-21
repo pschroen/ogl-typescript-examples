@@ -1446,56 +1446,87 @@ declare module 'ogl' {
 
         getRenderList(options: object): void;
 
-        render(options: object): void;
+        render(options: Partial<{
+            scene: Transform;
+            camera: Camera;
+            target: RenderTarget;
+            update: boolean;
+            sort: boolean;
+            frustumCull: boolean;
+            clear: boolean;
+        }>): void;
     }
 
     /**
-     * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
-     * additions and subtractions.
+     * A class for managing post-processing shader passes.
      *
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
-     * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Post.js | Source}
      */
-    export interface OrbitOptions {
-        element: HTMLElement;
-        enabled: boolean;
-        target: Vec3;
-        ease: number;
-        inertia: number;
-        enableRotate: boolean;
-        rotateSpeed: number;
-        autoRotate: boolean;
-        autoRotateSpeed: number;
-        enableZoom: boolean;
-        zoomSpeed: number;
-        zoomStyle: 'dolly' | 'fov' | string;
-        enablePan: boolean;
-        panSpeed: number;
-        minPolarAngle: number;
-        maxPolarAngle: number;
-        minAzimuthAngle: number;
-        maxAzimuthAngle: number;
-        minDistance: number;
-        maxDistance: number;
+    export interface PostOptions {
+        width: number;
+        height: number;
+        dpr: number;
+        wrapS: GLenum;
+        wrapT: GLenum;
+        minFilter: GLenum;
+        magFilter: GLenum;
+        geometry: Triangle;
+        targetOnly: boolean;
     }
 
-    export class Orbit {
+    export interface Pass {
+        mesh: Mesh;
+        program: Program;
+        uniforms: Record<string, any>;
         enabled: boolean;
-        target: Vec3;
-        zoomStyle: 'dolly' | 'fov' | string;
+        textureUniform: string;
+        vertex: string;
+        fragment: string;
+    }
 
-        minDistance: number;
-        maxDistance: number;
+    export class Post {
+        gl: OGLRenderingContext;
 
-        offset: Vec3;
+        passes: Pass[];
 
-        constructor(object: Transform & { fov: number }, options?: Partial<OrbitOptions>);
+        geometry: Triangle;
 
-        update(): void;
+        uniform: { value: any };
+        targetOnly: boolean;
 
-        forcePosition(): void;
+        dpr: number;
+        width: number;
+        height: number;
 
-        remove(): void;
+        resolutionWidth: number;
+        resolutionHeight: number;
+
+        fbo: {
+            read: RenderTarget;
+            write: RenderTarget;
+            swap: () => void;
+        };
+
+        constructor(gl: OGLRenderingContext, options?: Partial<PostOptions>);
+
+        addPass(options?: Partial<Pass>): Pass;
+
+        resize(options?: Partial<{
+            width: number;
+            height: number;
+            dpr: number;
+        }>): void;
+
+        render(options: Partial<{
+            scene: Transform;
+            camera: Camera;
+            texture: Texture;
+            target: RenderTarget;
+            update: boolean;
+            sort: boolean;
+            frustumCull: boolean;
+            beforePostCallbacks: Function[];
+        }>): void;
     }
 
     /**
@@ -1525,6 +1556,7 @@ declare module 'ogl' {
         size: number;
         coords: Float32Array;
         uniform: { value: any };
+
         fbo: {
             read: RenderTarget;
             write: RenderTarget;
@@ -1577,5 +1609,54 @@ declare module 'ogl' {
         constructor(gl: OGLRenderingContext, options?: Partial<FlowmapOptions>)
 
         update(): void;
+    }
+
+    /**
+     * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
+     * additions and subtractions.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
+     * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
+     */
+    export interface OrbitOptions {
+        element: HTMLElement;
+        enabled: boolean;
+        target: Vec3;
+        ease: number;
+        inertia: number;
+        enableRotate: boolean;
+        rotateSpeed: number;
+        autoRotate: boolean;
+        autoRotateSpeed: number;
+        enableZoom: boolean;
+        zoomSpeed: number;
+        zoomStyle: 'dolly' | 'fov' | string;
+        enablePan: boolean;
+        panSpeed: number;
+        minPolarAngle: number;
+        maxPolarAngle: number;
+        minAzimuthAngle: number;
+        maxAzimuthAngle: number;
+        minDistance: number;
+        maxDistance: number;
+    }
+
+    export class Orbit {
+        enabled: boolean;
+        target: Vec3;
+        zoomStyle: 'dolly' | 'fov' | string;
+
+        minDistance: number;
+        maxDistance: number;
+
+        offset: Vec3;
+
+        constructor(object: Transform & { fov: number }, options?: Partial<OrbitOptions>);
+
+        update(): void;
+
+        forcePosition(): void;
+
+        remove(): void;
     }
 }

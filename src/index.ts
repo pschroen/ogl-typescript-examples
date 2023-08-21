@@ -1,178 +1,216 @@
-import { Renderer, Transform, Vec3, Color, Polyline } from 'ogl';
+import { Renderer, Camera, Program, Mesh, Vec2, Post, Box, Transform } from 'ogl';
+import type { Pass } from 'ogl';
 
-interface LineSpringMovement {
-    spring: number;
-    friction: number;
-    mouseVelocity: Vec3;
-    mouseOffset: Vec3;
-    points?: Vec3[];
-    polyline?: Polyline;
-}
-
-const vertex = /* glsl */ `
+const brightPassFragment = /* glsl */ `
     precision highp float;
+    uniform sampler2D tMap;
+    uniform float uThreshold;
 
-    attribute vec3 position;
-    attribute vec3 next;
-    attribute vec3 prev;
-    attribute vec2 uv;
-    attribute float side;
-
-    uniform vec2 uResolution;
-    uniform float uDPR;
-    uniform float uThickness;
-
-    vec4 getPosition() {
-        vec4 current = vec4(position, 1);
-
-        vec2 aspect = vec2(uResolution.x / uResolution.y, 1);
-        vec2 nextScreen = next.xy * aspect;
-        vec2 prevScreen = prev.xy * aspect;
-
-        // Calculate the tangent direction
-        vec2 tangent = normalize(nextScreen - prevScreen);
-
-        // Rotate 90 degrees to get the normal
-        vec2 normal = vec2(-tangent.y, tangent.x);
-        normal /= aspect;
-
-        // Taper the line to be fatter in the middle, and skinny at the ends using the uv.y
-        normal *= mix(1.0, 0.1, pow(abs(uv.y - 0.5) * 2.0, 2.0) );
-
-        // When the points are on top of each other, shrink the line to avoid artifacts.
-        float dist = length(nextScreen - prevScreen);
-        normal *= smoothstep(0.0, 0.02, dist);
-
-        float pixelWidthRatio = 1.0 / (uResolution.y / uDPR);
-        float pixelWidth = current.w * pixelWidthRatio;
-        normal *= pixelWidth * uThickness;
-        current.xy -= normal * side;
-
-        return current;
-    }
+    varying vec2 vUv;
 
     void main() {
-        gl_Position = getPosition();
+        vec4 tex = texture2D(tMap, vUv);
+        vec4 bright = tex * step(uThreshold, length(tex.rgb) / 1.73205);
+        gl_FragColor = bright;
+    }
+`;
+
+const blurFragment = /* glsl */ `
+    precision highp float;
+
+    // https://github.com/Jam3/glsl-fast-gaussian-blur/blob/master/5.glsl
+    vec4 blur5(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+        vec4 color = vec4(0.0);
+        vec2 off1 = vec2(1.3333333333333333) * direction;
+        color += texture2D(image, uv) * 0.29411764705882354;
+        color += texture2D(image, uv + (off1 / resolution)) * 0.35294117647058826;
+        color += texture2D(image, uv - (off1 / resolution)) * 0.35294117647058826;
+        return color;
+    }
+
+    // https://github.com/Jam3/glsl-fast-gaussian-blur/blob/master/9.glsl
+    vec4 blur9(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+        vec4 color = vec4(0.0);
+        vec2 off1 = vec2(1.3846153846) * direction;
+        vec2 off2 = vec2(3.2307692308) * direction;
+        color += texture2D(image, uv) * 0.2270270270;
+        color += texture2D(image, uv + (off1 / resolution)) * 0.3162162162;
+        color += texture2D(image, uv - (off1 / resolution)) * 0.3162162162;
+        color += texture2D(image, uv + (off2 / resolution)) * 0.0702702703;
+        color += texture2D(image, uv - (off2 / resolution)) * 0.0702702703;
+        return color;
+    }
+
+    uniform sampler2D tMap;
+    uniform vec2 uDirection;
+    uniform vec2 uResolution;
+
+    varying vec2 vUv;
+
+    void main() {
+
+        // Swap with blur9 for higher quality
+        // gl_FragColor = blur9(tMap, vUv, uResolution, uDirection);
+        gl_FragColor = blur5(tMap, vUv, uResolution, uDirection);
+    }
+`;
+
+const compositeFragment = /* glsl */ `
+    precision highp float;
+
+    uniform sampler2D tMap;
+    uniform sampler2D tBloom;
+    uniform vec2 uResolution;
+    uniform float uBloomStrength;
+
+    varying vec2 vUv;
+
+    void main() {
+        gl_FragColor = texture2D(tMap, vUv) + texture2D(tBloom, vUv) * uBloomStrength;
     }
 `;
 
 {
-    const renderer = new Renderer({ dpr: 2 });
+    const renderer = new Renderer({ dpr: 1 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
-    gl.clearColor(0.9, 0.9, 0.9, 1);
+    gl.clearColor(0.0, 0.0, 0.1, 1);
+
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(0, 1, 5);
+    camera.lookAt([0, 0, 0]);
+
+    // Create composite post at full resolution, and bloom at reduced resolution
+    const postComposite = new Post(gl);
+    // `targetOnly: true` prevents post from rendering to canvas
+    const postBloom = new Post(gl, { dpr: 0.5, targetOnly: true });
+
+    // Create uniforms for passes
+    const resolution = { value: new Vec2() };
+    const bloomResolution = { value: new Vec2() };
 
     const scene = new Transform();
 
-    const lines: LineSpringMovement[] = [];
+    let mesh: Mesh;
+    // Store this so we can toggle it on and off during render phase
+    let compositePass: Pass;
 
-    function resize() {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-
-        // We call resize on the polylines to update their resolution uniforms
-        lines.forEach((line) => line.polyline!.resize());
-    }
-    window.addEventListener('resize', resize, false);
-
-    // Just a helper function to make the code neater
-    function random(a: number, b: number) {
-        const alpha = Math.random();
-        return a * (1.0 - alpha) + b * alpha;
+    {
+        initScene();
+        initPasses();
     }
 
-    // If you're interested in learning about drawing lines with geometry,
-    // go through this detailed article by Matt DesLauriers
-    // https://mattdesl.svbtle.com/drawing-lines-is-hard
-    // It's an excellent breakdown of the approaches and their pitfalls.
+    function initScene() {
+        const geometry = new Box(gl);
+        const program = new Program(gl, {
+            vertex: /* glsl */ `
+                attribute vec3 position;
+                attribute vec2 uv;
+                uniform mat4 modelViewMatrix;
+                uniform mat4 projectionMatrix;
 
-    // In this example, we're making screen-space polylines. Basically it
-    // involves creating a geometry of vertices along a path - with two vertices
-    // at each point. Then in the vertex shader, we push each pair apart to
-    // give the line some width.
+                varying vec2 vUv;
 
-    // We're going to make a number of different coloured lines for fun.
-    ['#e09f7d', '#ef5d60', '#ec4067', '#a01a7d', '#311847'].forEach((color, i) => {
-        // Store a few values for each lines' spring movement
-        const line: LineSpringMovement = {
-            spring: random(0.02, 0.1),
-            friction: random(0.7, 0.95),
-            mouseVelocity: new Vec3(),
-            mouseOffset: new Vec3(random(-1, 1) * 0.02),
-        };
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+                }
+            `,
+            fragment: /* glsl */ `
+                precision highp float;
 
-        // Create an array of Vec3s (eg [[0, 0, 0], ...])
-        // Note: Only pass in one for each point on the line - the class will handle
-        // the doubling of vertices for the polyline effect.
-        const count = 20;
-        const points: Vec3[] = (line.points = []);
-        for (let i = 0; i < count; i++) points.push(new Vec3());
+                varying vec2 vUv;
 
-        // Pass in the points, and any custom elements - for example here we've made
-        // custom shaders, and accompanying uniforms.
-        line.polyline = new Polyline(gl, {
-            points,
-            vertex,
+                void main() {
+                    gl_FragColor = vec4(vUv, 1.0, 1.0);
+                }
+            `,
+        });
+        mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(scene);
+    }
+
+    function initPasses() {
+        // Add Bright pass - filter the scene to only the bright parts we want to blur
+        const brightPass = postBloom.addPass({
+            fragment: brightPassFragment,
             uniforms: {
-                uColor: { value: new Color(color) },
-                uThickness: { value: random(20, 50) },
+                uThreshold: { value: 0.8 },
             },
         });
+        // Add gaussian blur passes
+        const horizontalPass = postBloom.addPass({
+            fragment: blurFragment,
+            uniforms: {
+                uResolution: bloomResolution,
+                uDirection: { value: new Vec2(2, 0) },
+            },
+        });
+        const verticalPass = postBloom.addPass({
+            fragment: blurFragment,
+            uniforms: {
+                uResolution: bloomResolution,
+                uDirection: { value: new Vec2(0, 2) },
+            },
+        });
+        // Re-add the gaussian blur passes several times to the array to get smoother results
+        for (let i = 0; i < 5; i++) {
+            postBloom.passes.push(horizontalPass, verticalPass);
+        }
 
-        line.polyline.mesh.setParent(scene);
+        // Add final composite pass
+        compositePass = postComposite.addPass({
+            fragment: compositeFragment,
+            uniforms: {
+                uResolution: resolution,
+                tBloom: postBloom.uniform,
+                uBloomStrength: { value: 1.0 },
+            },
+        });
+    }
 
-        lines.push(line);
-    });
+    function resize() {
+        const { innerWidth: width, innerHeight: height } = window;
+        renderer.setSize(width, height);
+        camera.perspective({ aspect: width / height });
 
-    // Call initial resize after creating the polylines
+        // Update post classes
+        postComposite.resize();
+        postBloom.resize();
+
+        // Update uniforms
+        resolution.value.set(width, height);
+        bloomResolution.value.set(postBloom.resolutionWidth, postBloom.resolutionHeight);
+    }
+
+    window.addEventListener('resize', resize, false);
     resize();
 
-    // Add handlers to get mouse position
-    const mouse = new Vec3();
-    if ('ontouchstart' in window) {
-        window.addEventListener('touchstart', updateMouse, false);
-        window.addEventListener('touchmove', updateMouse, false);
-    } else {
-        window.addEventListener('mousemove', updateMouse, false);
-    }
-
-    function updateMouse(e: TouchEvent | MouseEvent) {
-        let x!: number;
-        let y!: number;
-        if ((e as TouchEvent).changedTouches && (e as TouchEvent).changedTouches.length) {
-            x = (e as TouchEvent).changedTouches[0].pageX;
-            y = (e as TouchEvent).changedTouches[0].pageY;
-        }
-        if (x === undefined) {
-            x = (e as MouseEvent).pageX;
-            y = (e as MouseEvent).pageY;
-        }
-
-        // Get mouse value in -1 to 1 range, with y flipped
-        mouse.set((x / gl.renderer.width) * 2 - 1, (y / gl.renderer.height) * -2 + 1, 0);
-    }
-
-    const tmp = new Vec3();
-
     requestAnimationFrame(update);
-    function update(t: DOMHighResTimeStamp) {
+    function update() {
         requestAnimationFrame(update);
 
-        lines.forEach((line) => {
-            // Update polyline input points
-            for (let i = line.points!.length - 1; i >= 0; i--) {
-                if (!i) {
-                    // For the first point, spring ease it to the mouse position
-                    tmp.copy(mouse).add(line.mouseOffset).sub(line.points![i]).multiply(line.spring);
-                    line.mouseVelocity.add(tmp).multiply(line.friction);
-                    line.points![i].add(line.mouseVelocity);
-                } else {
-                    // The rest of the points ease to the point in front of them, making a line
-                    line.points![i].lerp(line.points![i - 1], 0.9);
-                }
-            }
-            line.polyline!.updateGeometry();
-        });
+        mesh.rotation.y -= 0.005;
+        mesh.rotation.x -= 0.01;
 
-        renderer.render({ scene });
+        // Disable compositePass pass, so this post will just render the scene for now
+        compositePass.enabled = false;
+        // `targetOnly` prevents post from rendering to the canvas
+        postComposite.targetOnly = true;
+        // This renders the scene to postComposite.uniform.value
+        postComposite.render({ scene, camera });
+
+        // This render the bloom effect's bright and blur passes to postBloom.fbo.read
+        // Passing in a `texture` argument avoids the post initially rendering the scene
+        postBloom.render({ texture: postComposite.uniform.value });
+
+        // Re-enable composite pass
+        compositePass.enabled = true;
+        // Allow post to render to canvas upon its last pass
+        postComposite.targetOnly = false;
+
+        // This renders to canvas, compositing the bloom pass on top
+        // pass back in its previous render of the scene to avoid re-rendering
+        postComposite.render({ texture: postComposite.uniform.value });
     }
 }
