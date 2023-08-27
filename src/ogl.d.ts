@@ -544,7 +544,7 @@ declare module 'ogl' {
         isInstanced: boolean;
         bounds: Bounds;
 
-        raycast?: 'sphere' | 'box'
+        raycast?: 'sphere' | 'box';
 
         constructor(gl: OGLRenderingContext, attributes?: AttributeMap);
 
@@ -562,7 +562,7 @@ declare module 'ogl' {
 
         bindAttributes(program: Program): void;
 
-        draw(options: object): void;
+        draw(options: { program: Program; mode?: number }): void;
 
         getPosition(): Attribute | boolean | void;
 
@@ -815,7 +815,7 @@ declare module 'ogl' {
         renderOrder: number;
     }
 
-    export interface DrawOptions {
+    export interface MeshDrawOptions {
         camera: Camera;
     }
 
@@ -844,7 +844,7 @@ declare module 'ogl' {
 
         onAfterRender(f: Function): this;
 
-        draw(options: Partial<DrawOptions>): void;
+        draw(options?: Partial<MeshDrawOptions>): void;
     }
 
     /**
@@ -1095,6 +1095,83 @@ declare module 'ogl' {
     }
 
     /**
+     * A class for animation.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Animation.js | Source}
+     */
+    export interface AnimationFrame {
+        position: Vec3;
+        quaternion: Quat;
+        scale: Vec3;
+    }
+
+    export interface AnimationData {
+        frames: AnimationFrame[];
+    }
+
+    export interface AnimationOptions {
+        objects: BoneTransform[];
+        data: AnimationData;
+    }
+
+    export class Animation {
+        objects: BoneTransform[];
+        data: AnimationData;
+        elapsed: number;
+        weight: number;
+        duration: number;
+
+        constructor(gl: OGLRenderingContext, options?: Partial<AnimationOptions>);
+
+        update(totalWeight?: number, isSet?: boolean): void;
+    }
+
+    /**
+     * A mesh with a skeleton and bones for animation.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Skin.js | Source}
+     */
+    export interface SkinRig {
+        bindPose: { position: Vec3; quaternion: Quat; scale: Vec3 };
+        bones: { name: string; parent: Transform }[];
+    }
+
+    export interface SkinOptions {
+        rig: SkinRig;
+        geometry: Geometry;
+        program: Program;
+        mode: GLenum;
+    }
+
+    export interface BoneTransform extends Transform {
+        name: string;
+        bindInverse: Mat4;
+    }
+
+    export class Skin extends Mesh {
+        root: Transform;
+
+        bones: Transform[];
+
+        boneMatrices: Float32Array;
+        boneTextureSize: number;
+        boneTexture: Texture;
+        animations: Animation[];
+
+        constructor(gl: OGLRenderingContext, options?: Partial<SkinOptions>);
+
+        createBones(rig: SkinRig): void;
+
+        createBoneTexture(): void;
+
+        addAnimation(data: Animation['data']): Animation;
+
+        update(): void;
+
+        override draw(options?: Partial<MeshDrawOptions>): void;
+    }
+
+    /**
      * A mesh with a skeleton and bones for animation.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFSkin.js | Source}
@@ -1126,7 +1203,7 @@ declare module 'ogl' {
 
         updateUniforms(): void;
 
-        draw(options?: { camera?: Camera }): void;
+        override draw(options?: Partial<MeshDrawOptions>): void;
     }
 
     /**
