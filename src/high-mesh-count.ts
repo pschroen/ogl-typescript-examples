@@ -86,7 +86,7 @@ const fragment = /* glsl */ `
         }
 
         // set input counter value to make sure
-        // (document.getElementById('meshCountInput') as HTMLInputElement).value = count as unknown as string;
+        (document.getElementById('meshCountInput') as HTMLInputElement).value = count as unknown as string;
     };
 
     setMeshCount(1000);

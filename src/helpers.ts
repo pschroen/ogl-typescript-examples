@@ -1,33 +1,33 @@
 import { Renderer, Camera, Transform, Program, Mesh, Sphere, Box, Orbit, AxesHelper, VertexNormalsHelper, FaceNormalsHelper, GridHelper } from 'ogl';
 
 const vertex = /* glsl */ `
-        attribute vec3 position;
-        attribute vec3 normal;
+    attribute vec3 position;
+    attribute vec3 normal;
 
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
-        uniform mat3 normalMatrix;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
 
-        varying vec3 vNormal;
+    varying vec3 vNormal;
 
-        void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `;
+    void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
 
 const fragment = /* glsl */ `
-        precision highp float;
+    precision highp float;
 
-        varying vec3 vNormal;
+    varying vec3 vNormal;
 
-        void main() {
-            vec3 normal = normalize(vNormal);
-            float lighting = dot(normal, normalize(vec3(1.0, 1.0, 1.0)));
-            gl_FragColor.rgb = vec3(0.75) + lighting * 0.25;
-            gl_FragColor.a = 1.0;
-        }
-    `;
+    void main() {
+        vec3 normal = normalize(vNormal);
+        float lighting = dot(normal, normalize(vec3(1.0, 1.0, 1.0)));
+        gl_FragColor.rgb = vec3(0.75) + lighting * 0.25;
+        gl_FragColor.a = 1.0;
+    }
+`;
 
 {
     const renderer = new Renderer({ dpr: 2 });
