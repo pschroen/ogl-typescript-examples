@@ -1,61 +1,159 @@
-import { Renderer, Camera, Orbit, Transform, Geometry, WireMesh, Cylinder, Vec3, Color, NormalProgram } from 'ogl';
+import { Renderer, Camera, Transform, Program, Geometry, Mesh, Vec3, Orbit } from 'ogl';
+
+const vertex100 = /* glsl */ `
+    attribute vec3 position;
+    attribute vec3 barycentric;
+
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+
+    varying vec3 vBarycentric;
+
+    void main() {
+        vBarycentric = barycentric;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const fragment100 = /* glsl */ `#extension GL_OES_standard_derivatives : enable
+    precision highp float;
+
+    varying vec3 vBarycentric;
+
+    void main() {
+        vec3 bary = vBarycentric;
+
+        vec3 color = vec3(0);
+        float alpha = 1.0;
+
+        // Line thickness - in pixels
+        float width = 1.0 * 0.5;
+        vec3 d = fwidth(bary);
+        vec3 s = smoothstep(d * (width + 0.5), d * (width - 0.5), bary);
+        alpha *= max(max(s.x, s.y), s.z);
+
+        // Dashes
+        alpha *= step(0.0, sin(max(bary.x, bary.y) * 3.14 * 5.0));
+
+        // Back face shading
+        color = mix(vec3(1, 0, 0), color, vec3(gl_FrontFacing));
+        alpha = mix(alpha * 0.1 + 0.02, alpha, float(gl_FrontFacing));
+
+        gl_FragColor.rgb = color;
+        gl_FragColor.a = alpha;
+    }
+`;
+
+const vertex300 = /* glsl */ `#version 300 es
+    in vec3 position;
+    in vec3 barycentric;
+
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+
+    out vec3 vBarycentric;
+
+    void main() {
+        vBarycentric = barycentric;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const fragment300 = /* glsl */ `#version 300 es
+    precision highp float;
+
+    in vec3 vBarycentric;
+
+    out vec4 FragColor;
+
+    void main() {
+        vec3 bary = vBarycentric;
+
+        vec3 color = vec3(0);
+        float alpha = 1.0;
+
+        // Line thickness - in pixels
+        float width = 1.0 * 0.5;
+        vec3 d = fwidth(bary);
+        vec3 s = smoothstep(d * (width + 0.5), d * (width - 0.5), bary);
+        alpha *= max(max(s.x, s.y), s.z);
+
+        // Dashes
+        alpha *= step(0.0, sin(max(bary.x, bary.y) * 3.14 * 5.0));
+
+        // Back face shading
+        color = mix(vec3(1, 0, 0), color, vec3(gl_FrontFacing));
+        alpha = mix(alpha * 0.1 + 0.02, alpha, float(gl_FrontFacing));
+
+        FragColor.rgb = color;
+        FragColor.a = alpha;
+    }
+`;
 
 {
-    main();
-    async function main() {
-        const modelData = await fetch('./assets/fox.json').then(r => r.json());
+    const renderer = new Renderer({ dpr: 2 });
+    const gl = renderer.gl;
+    document.body.appendChild(gl.canvas);
+    gl.clearColor(1, 1, 1, 1);
 
-        const renderer = new Renderer();
-        const gl = renderer.gl;
-        document.body.appendChild(gl.canvas);
-        gl.clearColor(1, 1, 1, 1);
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(3, 2, 4);
 
-        const camera = new Camera(gl, { fov: 15 });
-        camera.position.set(15, 4, 20);
+    const controls = new Orbit(camera, {
+        target: new Vec3(0, 1, 0),
+    });
 
-        const controls = new Orbit(camera, {
-            target: new Vec3(0, 0, 0),
-        });
+    function resize() {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
+    }
+    window.addEventListener('resize', resize, false);
+    resize();
 
-        function resize() {
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
+    const scene = new Transform();
+
+    const program = new Program(gl, {
+        vertex: renderer.isWebgl2 ? vertex300 : vertex100,
+        fragment: renderer.isWebgl2 ? fragment300 : fragment100,
+        transparent: true,
+        cullFace: false,
+        depthTest: false,
+    });
+
+    function addBarycentric(position: number[]) {
+        const count = position.length / 9;
+        const barycentric = [];
+
+        for (let i = 0; i < count; i++) {
+            if (i % 2 === 0) barycentric.push(0, 0, 1, 0, 1, 0, 1, 0, 0);
+            else barycentric.push(0, 1, 0, 0, 0, 1, 1, 0, 0);
         }
-        window.addEventListener('resize', resize, false);
-        resize();
 
-        const scene = new Transform();
+        return new Float32Array(barycentric);
+    }
 
-        const cylinderGeometry = new Cylinder(gl);
+    let mesh: Mesh;
+    loadModel();
+    async function loadModel() {
+        const data = await (await fetch(`assets/goat.json`)).json();
 
-        /* Just switch between Mesh and WireMesh to see mesh wireframe.
-        In WireMesh `program` property are not required and will be ignored */
-        // const cylinderMesh = new Mesh(gl, { geometry: cylinderGeometry, program: new NormalProgram(gl) });
-        const cylinderMesh = new WireMesh(gl, { geometry: cylinderGeometry, program: new NormalProgram(gl) });
-        cylinderMesh.setParent(scene);
-        cylinderMesh.position.y = 1.5;
-
-        const modelGeometry = new Geometry(gl, {
-            position: { size: 3, data: new Float32Array(modelData.position), },
-            normal: { size: 3, data: new Float32Array(modelData.normal), },
-            uv: { size: 2, data: new Float32Array(modelData.uv), }
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            normal: { size: 3, data: new Float32Array(data.normal) },
+            barycentric: { size: 3, data: addBarycentric(data.position) },
         });
 
-        /* Use wireColor to change wire color */
-        // const modelMesh = new Mesh(gl, { geometry: modelGeometry, program: new NormalProgram(gl) });
-        const modelMesh = new WireMesh(gl, { geometry: modelGeometry, wireColor: new Color(1, 0.75, 0) });
-        modelMesh.setParent(scene);
-        modelMesh.scale.set(0.75, 0.75, 0.75);
-        modelMesh.position.y = -1.5;
+        mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(scene);
+    }
 
+    requestAnimationFrame(update);
+    function update() {
         requestAnimationFrame(update);
-        function update(t: DOMHighResTimeStamp) {
-            requestAnimationFrame(update);
 
-            scene.rotation.y += -0.005;
-
-            controls.update();
-            renderer.render({ scene, camera });
-        }
+        if (mesh) mesh.rotation.y += 0.005;
+        controls.update();
+        renderer.render({ scene, camera });
     }
 }
