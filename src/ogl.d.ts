@@ -892,6 +892,19 @@ declare module 'ogl' {
     }
 
     /**
+     * A wireframe mesh.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/WireMesh.js | Source}
+     */
+    export interface WireMeshOptions extends MeshOptions {
+        wireColor: Color;
+    }
+
+    export class WireMesh extends Mesh {
+        constructor(gl: OGLRenderingContext, options?: Partial<WireMeshOptions>);
+    }
+
+    /**
      * Axes helper.
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/AxesHelper.js | Source}
