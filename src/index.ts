@@ -1,92 +1,42 @@
-import { Renderer, Camera, Transform, Program, Geometry, Mesh, Vec3, Orbit } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh } from 'ogl';
 
-const vertex100 = /* glsl */ `
+const vertex = /* glsl */ `
+    attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 barycentric;
+    attribute vec3 normal;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
 
-    varying vec3 vBarycentric;
+    varying vec2 vUv;
+    varying vec3 vNormal;
 
     void main() {
-        vBarycentric = barycentric;
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
 
-const fragment100 = /* glsl */ `#extension GL_OES_standard_derivatives : enable
+const fragment = /* glsl */ `
     precision highp float;
 
-    varying vec3 vBarycentric;
+    uniform float uTime;
+    uniform sampler2D tMap;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
 
     void main() {
-        vec3 bary = vBarycentric;
+        vec3 normal = normalize(vNormal);
+        vec3 tex = texture2D(tMap, vUv).rgb;
 
-        vec3 color = vec3(0);
-        float alpha = 1.0;
-
-        // Line thickness - in pixels
-        float width = 1.0 * 0.5;
-        vec3 d = fwidth(bary);
-        vec3 s = smoothstep(d * (width + 0.5), d * (width - 0.5), bary);
-        alpha *= max(max(s.x, s.y), s.z);
-
-        // Dashes
-        alpha *= step(0.0, sin(max(bary.x, bary.y) * 3.14 * 5.0));
-
-        // Back face shading
-        color = mix(vec3(1, 0, 0), color, vec3(gl_FrontFacing));
-        alpha = mix(alpha * 0.1 + 0.02, alpha, float(gl_FrontFacing));
-
-        gl_FragColor.rgb = color;
-        gl_FragColor.a = alpha;
-    }
-`;
-
-const vertex300 = /* glsl */ `#version 300 es
-    in vec3 position;
-    in vec3 barycentric;
-
-    uniform mat4 modelViewMatrix;
-    uniform mat4 projectionMatrix;
-
-    out vec3 vBarycentric;
-
-    void main() {
-        vBarycentric = barycentric;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-`;
-
-const fragment300 = /* glsl */ `#version 300 es
-    precision highp float;
-
-    in vec3 vBarycentric;
-
-    out vec4 FragColor;
-
-    void main() {
-        vec3 bary = vBarycentric;
-
-        vec3 color = vec3(0);
-        float alpha = 1.0;
-
-        // Line thickness - in pixels
-        float width = 1.0 * 0.5;
-        vec3 d = fwidth(bary);
-        vec3 s = smoothstep(d * (width + 0.5), d * (width - 0.5), bary);
-        alpha *= max(max(s.x, s.y), s.z);
-
-        // Dashes
-        alpha *= step(0.0, sin(max(bary.x, bary.y) * 3.14 * 5.0));
-
-        // Back face shading
-        color = mix(vec3(1, 0, 0), color, vec3(gl_FrontFacing));
-        alpha = mix(alpha * 0.1 + 0.02, alpha, float(gl_FrontFacing));
-
-        FragColor.rgb = color;
-        FragColor.a = alpha;
+        vec3 light = normalize(vec3(0.5, 1.0, -0.3));
+        float shading = dot(normal, light) * 0.15;
+        gl_FragColor.rgb = tex + shading;
+        gl_FragColor.a = 1.0;
     }
 `;
 
@@ -97,11 +47,8 @@ const fragment300 = /* glsl */ `#version 300 es
     gl.clearColor(1, 1, 1, 1);
 
     const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(3, 2, 4);
-
-    const controls = new Orbit(camera, {
-        target: new Vec3(0, 1, 0),
-    });
+    camera.position.set(5, 3, 6);
+    camera.lookAt([0, 0, 0]);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -112,48 +59,65 @@ const fragment300 = /* glsl */ `#version 300 es
 
     const scene = new Transform();
 
+    const texture = new Texture(gl);
+    const img = new Image();
+    img.onload = () => (texture.image = img);
+    img.src = 'assets/croissant.jpg';
+
     const program = new Program(gl, {
-        vertex: renderer.isWebgl2 ? vertex300 : vertex100,
-        fragment: renderer.isWebgl2 ? fragment300 : fragment100,
-        transparent: true,
-        cullFace: false,
-        depthTest: false,
+        vertex,
+        fragment,
+        uniforms: {
+            tMap: { value: texture },
+        },
     });
 
-    function addBarycentric(position: number[]) {
-        const count = position.length / 9;
-        const barycentric = [];
-
-        for (let i = 0; i < count; i++) {
-            if (i % 2 === 0) barycentric.push(0, 0, 1, 0, 1, 0, 1, 0, 0);
-            else barycentric.push(0, 1, 0, 0, 0, 1, 1, 0, 0);
-        }
-
-        return new Float32Array(barycentric);
-    }
-
-    let mesh: Mesh;
+    let lineLoopMesh: Mesh, wireframeMesh: Mesh;
     loadModel();
     async function loadModel() {
-        const data = await (await fetch(`assets/goat.json`)).json();
+        const data = await (await fetch(`assets/croissant.json`)).json();
 
+        // Regular geometry with no modifications to be used with gl.LINE_LOOP version
         const geometry = new Geometry(gl, {
             position: { size: 3, data: new Float32Array(data.position) },
             uv: { size: 2, data: new Float32Array(data.uv) },
             normal: { size: 3, data: new Float32Array(data.normal) },
-            barycentric: { size: 3, data: addBarycentric(data.position) },
         });
 
-        mesh = new Mesh(gl, { geometry, program });
-        mesh.setParent(scene);
+        // Using gl.LINE_LOOP or gl.LINE_STRIP as the draw mode will give an approximate wireframe.
+        // This is a simpler, lighter option if accuracy is not important (i.e. debugging).
+        lineLoopMesh = new Mesh(gl, { mode: gl.LINE_LOOP, geometry, program });
+        lineLoopMesh.setParent(scene);
+        lineLoopMesh.position.y = 1;
+
+        // For an accurate wireframe, triangle vertices need to be duplicated to make line pairs.
+        // Here we do so by generating indices. If your geometry is already indexed, this needs to be adjusted.
+        let index = new Uint16Array((data.position.length / 3 / 3) * 6);
+        for (let i = 0; i < data.position.length / 3; i += 3) {
+            // For every triangle, make three line pairs (start, end)
+            index.set([i, i + 1, i + 1, i + 2, i + 2, i], i * 2);
+        }
+
+        const wireframeGeometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            normal: { size: 3, data: new Float32Array(data.normal) },
+            index: { data: index },
+        });
+
+        // use the gl.LINES draw mode
+        wireframeMesh = new Mesh(gl, { mode: gl.LINES, geometry: wireframeGeometry, program });
+        wireframeMesh.setParent(scene);
+        wireframeMesh.position.y = -1;
     }
 
     requestAnimationFrame(update);
     function update() {
         requestAnimationFrame(update);
 
-        if (mesh) mesh.rotation.y += 0.005;
-        controls.update();
+        if (lineLoopMesh) lineLoopMesh.rotation.y -= 0.005;
+        if (wireframeMesh) wireframeMesh.rotation.y += 0.005;
+
         renderer.render({ scene, camera });
     }
 }
