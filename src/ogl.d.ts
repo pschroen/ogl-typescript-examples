@@ -1038,7 +1038,10 @@ declare module 'ogl' {
             anisotropy: number;
         };
 
-        loaded: Promise<Texture>; // Set from texture loader
+        needsUpdate: Boolean;
+        onUpdate?: () => void;
+
+        loaded?: Promise<Texture>; // Set from texture loader
 
         constructor(gl: OGLRenderingContext, options?: Partial<TextureOptions>);
 

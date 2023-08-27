@@ -13,7 +13,7 @@ import {
 } from 'ogl';
 import type {OGLRenderingContext, RenderTargetOptions} from 'ogl';
 
-type LastMouseVec2 = Vec2 & { isInit: boolean };
+type LastMouse = Vec2 & { isInit: boolean };
 
 interface Splat {
     x: number;
@@ -545,7 +545,7 @@ const gradientSubtractShader = /* glsl */ `
         window.addEventListener('mousemove', updateMouse, false);
     }
 
-    const lastMouse = new Vec2() as LastMouseVec2;
+    const lastMouse = new Vec2() as LastMouse;
     function updateMouse(e: TouchEvent | MouseEvent) {
         let x!: number;
         let y!: number;

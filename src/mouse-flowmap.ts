@@ -1,6 +1,6 @@
 import { Renderer, Program, Texture, Mesh, Vec2, Flowmap, Triangle } from 'ogl';
 
-type VelocityVec2 = Vec2 & { needsUpdate: boolean };
+type Velocity = Vec2 & { needsUpdate: boolean };
 
 const vertex = /* glsl */ `
     attribute vec2 uv;
@@ -50,7 +50,7 @@ const fragment = /* glsl */ `
     // Variable inputs to control flowmap
     let aspect = 1;
     const mouse = new Vec2(-1);
-    const velocity = new Vec2() as VelocityVec2;
+    const velocity = new Vec2() as Velocity;
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);

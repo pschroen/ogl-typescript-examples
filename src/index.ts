@@ -1,24 +1,22 @@
-import { Renderer, Camera, Transform, Texture, Program, Mesh, Color, Plane } from 'ogl';
-
-type Shape = Mesh & { speed: number };
+import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh, Box } from 'ogl';
 
 const vertex = /* glsl */ `
     attribute vec2 uv;
     attribute vec3 position;
+    attribute vec3 normal;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
 
     varying vec2 vUv;
-    varying vec4 vMVPos;
+    varying vec3 vNormal;
 
     void main() {
         vUv = uv;
-        vec3 pos = position;
-        float dist = pow(length(vUv - 0.5), 2.0) - 0.25;
-        pos.z += dist * 0.5;
-        vMVPos = modelViewMatrix * vec4(pos, 1.0);
-        gl_Position = projectionMatrix * vMVPos;
+        vNormal = normalize(normalMatrix * normal);
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
 
@@ -26,28 +24,21 @@ const fragment = /* glsl */ `
     precision highp float;
 
     uniform sampler2D tMap;
-    uniform vec3 uColor;
 
     varying vec2 vUv;
-    varying vec4 vMVPos;
+    varying vec3 vNormal;
 
     void main() {
-        float alpha = texture2D(tMap, vUv).g;
+        vec3 normal = normalize(vNormal);
+        vec3 tex = texture2D(tMap, vUv).rgb;
 
-        vec3 color = uColor + vMVPos.xzy * 0.05;
+        vec3 light = normalize(vec3(0.5, 1.0, -0.3));
+        float shading = dot(normal, light) * 0.15;
 
-        float dist = length(vMVPos);
-        float fog = smoothstep(5.0, 10.0, dist);
-        color = mix(color, vec3(1.0), fog);
-
-        gl_FragColor.rgb = color;
-        gl_FragColor.a = alpha;
-        if (alpha < 0.01) discard;
+        gl_FragColor.rgb = tex + shading;
+        gl_FragColor.a = 1.0;
     }
 `;
-
-// This demonstrates the default geometry sorting before rendering.
-// It does not include sorting between faces/points within a single geometry.
 
 {
     const renderer = new Renderer({ dpr: 2 });
@@ -55,9 +46,9 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(0, 0, 7);
-    camera.rotation.z = -0.3;
+    const camera = new Camera(gl, { fov: 45 });
+    camera.position.set(3, 1.5, 4);
+    camera.lookAt([1, 0.2, 0]);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -68,53 +59,91 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    const geometry = new Plane(gl, {
-        widthSegments: 10,
-        heightSegments: 10,
-    });
-
+    // Upload empty texture while source loading
     const texture = new Texture(gl);
+
+    // update image value with source once loaded
     const img = new Image();
+    img.src = 'assets/saddle.jpg';
     img.onload = () => (texture.image = img);
-    img.src = 'assets/leaf.jpg';
+
+    // Alternatively, you can use the TextureLoader class's load method that handles
+    // these steps for you. It also handles compressed textures and fallbacks.
+    // const texture = TextureLoader.load(gl, { src: 'assets/saddle.jpg'});
 
     const program = new Program(gl, {
         vertex,
         fragment,
         uniforms: {
             tMap: { value: texture },
-            uColor: { value: new Color('#ffc219') },
         },
-        transparent: true,
-        cullFace: false,
     });
 
-    const meshes: Shape[] = [];
+    let mesh: Mesh;
+    loadModel();
+    async function loadModel() {
+        const data = await (await fetch(`assets/saddle.json`)).json();
 
-    for (let i = 0; i < 50; i++) {
-        const mesh = new Mesh(gl, { geometry, program }) as Shape;
-        mesh.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 3);
-        mesh.rotation.set(0, (Math.random() - 0.5) * 6.28, (Math.random() - 0.5) * 6.28);
-        mesh.scale.set(Math.random() * 0.5 + 0.2);
-        mesh.speed = Math.random() * 1.5 + 0.2;
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            normal: { size: 3, data: new Float32Array(data.normal) },
+        });
+
+        mesh = new Mesh(gl, { geometry, program });
+        mesh.position.set(0, 0, 0);
         mesh.setParent(scene);
-        meshes.push(mesh);
     }
+
+    const videoGeometry = new Box(gl, { width: 1.78, height: 1, depth: 1.78 });
+
+    // Init empty texture while source loading
+    const videoTexture = new Texture(gl, {
+        generateMipmaps: false,
+        width: 1024,
+        height: 512,
+    });
+
+    // Create video with attributes that let it autoplay
+    // Check update loop to see when video is attached to texture
+    let video = document.createElement('video');
+    video.src = 'assets/laputa.mp4';
+
+    // Disclaimer: video autoplay is a confusing, constantly-changing browser feature.
+    // The best approach is to never assume that it will work, and therefore prepare for a fallback.
+    video.loop = true;
+    video.muted = true;
+    video.setAttribute('playsinline', 'playsinline');
+    video.play();
+
+    const videoProgram = new Program(gl, {
+        vertex,
+        fragment,
+        uniforms: {
+            tMap: { value: videoTexture },
+        },
+        cullFace: false,
+    });
+    const videoMesh = new Mesh(gl, {
+        geometry: videoGeometry,
+        program: videoProgram,
+    });
+    videoMesh.position.set(0, 0.5, -4);
+    videoMesh.scale.set(1.5);
+    videoMesh.setParent(scene);
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        meshes.forEach((mesh) => {
-            mesh.rotation.y += 0.05;
-            mesh.rotation.z += 0.05;
-            mesh.position.y -= 0.02 * mesh.speed;
-            if (mesh.position.y < -3) mesh.position.y += 6;
-        });
+        // Attach video and/or update texture when video is ready
+        if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+            if (!videoTexture.image) videoTexture.image = video;
+            videoTexture.needsUpdate = true;
+        }
 
-        scene.rotation.y += 0.015;
-
-        // Objects are automatically sorted if renderer.sort === true
+        if (mesh) mesh.rotation.y -= 0.005;
+        videoMesh.rotation.y += 0.003;
         renderer.render({ scene, camera });
     }
 }
