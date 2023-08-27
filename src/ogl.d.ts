@@ -1350,10 +1350,10 @@ declare module 'ogl' {
         webgl: number;
     }
 
-    export type OGLRenderingContext = {
+    export type OGLRenderingContext = (WebGL2RenderingContext | WebGLRenderingContext) & {
         renderer: Renderer;
         canvas: HTMLCanvasElement;
-    } & (WebGL2RenderingContext | WebGLRenderingContext);
+    };
 
     export type RenderState = {
         blendFunc: { src: GLenum; dst: GLenum; srcAlpha?: any; dstAlpha?: any };
@@ -1609,6 +1609,14 @@ declare module 'ogl' {
         constructor(gl: OGLRenderingContext, options?: Partial<FlowmapOptions>)
 
         update(): void;
+    }
+
+    /**
+     * A class to assist with {@link https://en.wikipedia.org/wiki/Ray_casting | raycasting}.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Raycast.js | Source}
+     */
+    export class Raycast {
     }
 
     /**

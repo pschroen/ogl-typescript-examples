@@ -1,8 +1,6 @@
 import { Renderer, Program, Texture, Mesh, Vec2, Flowmap, Triangle } from 'ogl';
 
-interface VelocityVec2 extends Vec2 {
-    needsUpdate: boolean;
-}
+type VelocityVec2 = Vec2 & { needsUpdate: boolean };
 
 const vertex = /* glsl */ `
     attribute vec2 uv;

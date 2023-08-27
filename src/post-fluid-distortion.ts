@@ -13,9 +13,7 @@ import {
 } from 'ogl';
 import type {OGLRenderingContext, RenderTargetOptions} from 'ogl';
 
-interface LastMouseVec2 extends Vec2 {
-    isInit: boolean;
-}
+type LastMouseVec2 = Vec2 & { isInit: boolean };
 
 interface Splat {
     x: number;
