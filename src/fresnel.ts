@@ -54,7 +54,7 @@ const fragment = /* glsl */ `
     const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
-    gl.clearColor(...params.backgroundColor as unknown as [red: number, green: number, blue: number], 1);
+    gl.clearColor(...(params.backgroundColor as unknown as [red: number, green: number, blue: number]), 1);
 
     const camera = new Camera(gl, { fov: 35 });
     camera.position.set(0, 1, 7);

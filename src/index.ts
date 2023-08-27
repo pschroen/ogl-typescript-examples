@@ -1,4 +1,4 @@
-import { Renderer, Camera, Transform, Box, Program, Mesh } from "ogl";
+import { Renderer, Camera, Transform, Box, Program, Mesh } from 'ogl';
 
 {
     const renderer = new Renderer();
@@ -11,10 +11,10 @@ import { Renderer, Camera, Transform, Box, Program, Mesh } from "ogl";
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
         camera.perspective({
-            aspect: gl.canvas.width / gl.canvas.height
+            aspect: gl.canvas.width / gl.canvas.height,
         });
     }
-    window.addEventListener("resize", resize, false);
+    window.addEventListener('resize', resize, false);
     resize();
 
     const scene = new Transform();
@@ -36,7 +36,7 @@ import { Renderer, Camera, Transform, Box, Program, Mesh } from "ogl";
             void main() {
                 gl_FragColor = vec4(1.0);
             }
-        `
+        `,
     });
 
     const mesh = new Mesh(gl, { geometry, program });

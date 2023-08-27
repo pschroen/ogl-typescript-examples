@@ -3,7 +3,7 @@ import { Renderer, Camera, Orbit, Transform, Geometry, WireMesh, Cylinder, Vec3,
 {
     main();
     async function main() {
-        const modelData = await fetch('./assets/fox.json').then(r => r.json());
+        const modelData = await fetch('./assets/fox.json').then((r) => r.json());
 
         const renderer = new Renderer();
         const gl = renderer.gl;
@@ -36,9 +36,9 @@ import { Renderer, Camera, Orbit, Transform, Geometry, WireMesh, Cylinder, Vec3,
         cylinderMesh.position.y = 1.5;
 
         const modelGeometry = new Geometry(gl, {
-            position: { size: 3, data: new Float32Array(modelData.position), },
-            normal: { size: 3, data: new Float32Array(modelData.normal), },
-            uv: { size: 2, data: new Float32Array(modelData.uv), }
+            position: { size: 3, data: new Float32Array(modelData.position) },
+            normal: { size: 3, data: new Float32Array(modelData.normal) },
+            uv: { size: 2, data: new Float32Array(modelData.uv) },
         });
 
         /* Use wireColor to change wire color */

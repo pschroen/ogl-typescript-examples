@@ -39,11 +39,11 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, {fov: 35, far: 3000});
+    const camera = new Camera(gl, { fov: 35, far: 3000 });
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.perspective({aspect: gl.canvas.width / gl.canvas.height});
+        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
     }
     window.addEventListener('resize', resize, false);
     resize();
@@ -63,17 +63,16 @@ const fragment = /* glsl */ `
     let meshes: Mesh[] = [];
 
     globalThis.setMeshCount = function setMeshCount(count: number | string) {
-
         // sanitize input
         count = parseInt(count as string) || 1000;
 
         // remove old meshes
-        for(let i = 0; i < meshes.length; ++i) scene.removeChild(meshes[i]);
+        for (let i = 0; i < meshes.length; ++i) scene.removeChild(meshes[i]);
         meshes = [];
 
         // create our meshes according to input
-        for (let i = 0; i < count; ++i){
-            let mesh = new Mesh(gl, {geometry: cubeGeometry, program});
+        for (let i = 0; i < count; ++i) {
+            let mesh = new Mesh(gl, { geometry: cubeGeometry, program });
 
             // position meshes in a random position between -100 / +100 in each dimension
             mesh.position.set(
@@ -83,12 +82,11 @@ const fragment = /* glsl */ `
             );
             mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
             scene.addChild(mesh);
-            meshes.push(mesh)
+            meshes.push(mesh);
         }
 
         // set input counter value to make sure
         // (document.getElementById('meshCountInput') as HTMLInputElement).value = count as unknown as string;
-
     };
 
     setMeshCount(1000);
@@ -103,11 +101,11 @@ const fragment = /* glsl */ `
         camera.lookAt([0, 0, 0]);
 
         // rotate meshes
-        for(let i = 0; i < meshes.length; ++i){
-            meshes[i].rotation.x += 0.01
-            meshes[i].rotation.y += 0.01
+        for (let i = 0; i < meshes.length; ++i) {
+            meshes[i].rotation.x += 0.01;
+            meshes[i].rotation.y += 0.01;
         }
 
-        renderer.render({scene, camera});
+        renderer.render({ scene, camera });
     }
 }

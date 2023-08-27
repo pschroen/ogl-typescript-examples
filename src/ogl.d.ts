@@ -178,7 +178,7 @@ declare module 'ogl' {
             m30?: number,
             m31?: number,
             m32?: number,
-            m33?: number,
+            m33?: number
         );
 
         set(
@@ -197,7 +197,7 @@ declare module 'ogl' {
             m30: number,
             m31: number,
             m32: number,
-            m33: number,
+            m33: number
         ): this;
 
         translate(v: Mat4, m: Mat4): this;
@@ -334,7 +334,7 @@ declare module 'ogl' {
 
         getPoints(divisions?: number): Vec3[];
 
-        computeFrenetFrames(divisions?: number, closed?: boolean): { tangents: Vec3[], normals: Vec3[], binormals: Vec3[] };
+        computeFrenetFrames(divisions?: number, closed?: boolean): { tangents: Vec3[]; normals: Vec3[]; binormals: Vec3[] };
     }
 
     /**
@@ -612,7 +612,7 @@ declare module 'ogl' {
             uDir: number,
             vDir: number,
             i: number,
-            ii: number,
+            ii: number
         ): void;
     }
 
@@ -835,10 +835,7 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Mesh.js | Source}
      */
-    export interface MeshOptions<
-        TGeometry extends Geometry = Geometry,
-        TProgram extends Program = Program,
-    > {
+    export interface MeshOptions<TGeometry extends Geometry = Geometry, TProgram extends Program = Program> {
         geometry: TGeometry;
         program: TProgram;
         mode: GLenum;
@@ -850,10 +847,7 @@ declare module 'ogl' {
         camera: Camera;
     }
 
-    export class Mesh<
-        TGeometry extends Geometry = Geometry,
-        TProgram extends Program = Program,
-    > extends Transform {
+    export class Mesh<TGeometry extends Geometry = Geometry, TProgram extends Program = Program> extends Transform {
         gl: OGLRenderingContext;
         id: number;
 
@@ -918,7 +912,7 @@ declare module 'ogl' {
     }
 
     export class AxesHelper extends Mesh {
-        constructor(gl: OGLRenderingContext, options?: Partial<AxesHelperOptions>)
+        constructor(gl: OGLRenderingContext, options?: Partial<AxesHelperOptions>);
     }
 
     /**
@@ -932,7 +926,7 @@ declare module 'ogl' {
     }
 
     export class VertexNormalsHelper extends Mesh {
-        constructor(object: Mesh, options?: Partial<VertexNormalsHelperOptions>)
+        constructor(object: Mesh, options?: Partial<VertexNormalsHelperOptions>);
     }
 
     /**
@@ -946,7 +940,7 @@ declare module 'ogl' {
     }
 
     export class FaceNormalsHelper extends Mesh {
-        constructor(object: Mesh, options?: Partial<FaceNormalsHelperOptions>)
+        constructor(object: Mesh, options?: Partial<FaceNormalsHelperOptions>);
     }
 
     /**
@@ -961,7 +955,7 @@ declare module 'ogl' {
     }
 
     export class GridHelper extends Mesh {
-        constructor(gl: OGLRenderingContext, options?: Partial<GridHelperOptions>)
+        constructor(gl: OGLRenderingContext, options?: Partial<GridHelperOptions>);
     }
 
     /**
@@ -1018,12 +1012,7 @@ declare module 'ogl' {
         height: number;
     }[];
 
-    export type ImageRepresentation =
-        | HTMLImageElement
-        | HTMLVideoElement
-        | HTMLImageElement[]
-        | ArrayBufferView
-        | CompressedImage
+    export type ImageRepresentation = HTMLImageElement | HTMLVideoElement | HTMLImageElement[] | ArrayBufferView | CompressedImage;
 
     export interface TextureOptions {
         image: ImageRepresentation;
@@ -1106,12 +1095,7 @@ declare module 'ogl' {
 
         static loadKTX(src: string, texture: Texture): Promise<void>;
 
-        static loadImage(
-            gl: OGLRenderingContext,
-            src: string,
-            texture: Texture,
-            flipY: boolean,
-        ): Promise<HTMLImageElement | ImageBitmap>;
+        static loadImage(gl: OGLRenderingContext, src: string, texture: Texture, flipY: boolean): Promise<HTMLImageElement | ImageBitmap>;
 
         static clearCache(): void;
     }
@@ -1122,11 +1106,11 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/BasisManager.js | Source}
      */
     export type BasisImage = (Uint8Array | Uint16Array) & {
-        width: number
-        height: number
-        isCompressedTexture: boolean
-        internalFormat: number
-        isBasis: boolean
+        width: number;
+        height: number;
+        isCompressedTexture: boolean;
+        internalFormat: number;
+        isBasis: boolean;
     };
 
     export class BasisManager {
@@ -1234,9 +1218,7 @@ declare module 'ogl' {
         mode: GLenum;
     }
 
-    export class GLTFSkin<
-        TProgram extends Program = Program,
-    > extends Mesh {
+    export class GLTFSkin<TProgram extends Program = Program> extends Mesh {
         skeleton: GLTFSkinSkeleton;
         program: TProgram;
 
@@ -1360,8 +1342,7 @@ declare module 'ogl' {
         name: string;
     }
 
-    export interface GLTFDescription {
-    }
+    export interface GLTFDescription {}
 
     export interface GLTF {
         json: GLTFDescription;
@@ -1395,27 +1376,62 @@ declare module 'ogl' {
 
         static parseBufferViews(gl: OGLRenderingContext, desc: GLTFDescription, buffers: ArrayBuffer[]): ArrayBufferView[] | null;
 
-        static parseImages(gl: OGLRenderingContext, desc: GLTFDescription, dir: string, bufferViews: ArrayBufferView[]): Promise<(HTMLImageElement | ImageBitmap)[]> | null;
+        static parseImages(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            dir: string,
+            bufferViews: ArrayBufferView[]
+        ): Promise<(HTMLImageElement | ImageBitmap)[]> | null;
 
         static parseTextures(gl: OGLRenderingContext, desc: GLTFDescription, images: (HTMLImageElement | ImageBitmap)[]): Texture[] | null;
 
-        static createTexture(gl: OGLRenderingContext, desc: GLTFDescription, images: (HTMLImageElement | ImageBitmap)[], options: { sample: any; source: any; name: any; extensions: any; extras: any }): Texture;
+        static createTexture(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            images: (HTMLImageElement | ImageBitmap)[],
+            options: { sample: any; source: any; name: any; extensions: any; extras: any }
+        ): Texture;
 
         static parseMaterials(gl: OGLRenderingContext, desc: GLTFDescription, textures: Texture[]): GLTFMaterial[] | null;
 
         static parseSkins(gl: OGLRenderingContext, desc: GLTFDescription, bufferViews: ArrayBufferView[]): GLTFSkinReference[] | null;
 
-        static parseMeshes(gl: OGLRenderingContext, desc: GLTFDescription, bufferViews: ArrayBufferView[], materials: GLTFMaterial[], skins: GLTFSkinReference[]): GLTFMesh[] | null;
+        static parseMeshes(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            bufferViews: ArrayBufferView[],
+            materials: GLTFMaterial[],
+            skins: GLTFSkinReference[]
+        ): GLTFMesh[] | null;
 
-        static parsePrimitives(gl: OGLRenderingContext, primitives: object[], desc: GLTFDescription, bufferViews: ArrayBufferView[], materials: GLTFMaterial[], numInstances: number, isLightmap: boolean): GLTFPrimitive[];
+        static parsePrimitives(
+            gl: OGLRenderingContext,
+            primitives: object[],
+            desc: GLTFDescription,
+            bufferViews: ArrayBufferView[],
+            materials: GLTFMaterial[],
+            numInstances: number,
+            isLightmap: boolean
+        ): GLTFPrimitive[];
 
         static parseAccessor(index: number, desc: GLTFDescription, bufferViews: ArrayBufferView[]): GLTFAccessor;
 
-        static parseNodes(gl: OGLRenderingContext, desc: GLTFDescription, meshes: GLTFMesh[], skins: GLTFSkinReference[], images: (HTMLImageElement | ImageBitmap)[]): (InstancedMesh | Mesh)[] | null;
+        static parseNodes(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            meshes: GLTFMesh[],
+            skins: GLTFSkinReference[],
+            images: (HTMLImageElement | ImageBitmap)[]
+        ): (InstancedMesh | Mesh)[] | null;
 
         static populateSkins(skins: GLTFSkinReference[], nodes: (InstancedMesh | Mesh)[]): void;
 
-        static parseAnimations(gl: OGLRenderingContext, desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[], bufferViews: ArrayBufferView[]): GLTFAnimationReference[] | null;
+        static parseAnimations(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            nodes: (InstancedMesh | Mesh)[],
+            bufferViews: ArrayBufferView[]
+        ): GLTFAnimationReference[] | null;
 
         static parseScenes(desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[]): Transform[] | null;
 
@@ -1579,15 +1595,17 @@ declare module 'ogl' {
 
         getRenderList(options: object): void;
 
-        render(options: Partial<{
-            scene: Transform;
-            camera: Camera;
-            target: RenderTarget;
-            update: boolean;
-            sort: boolean;
-            frustumCull: boolean;
-            clear: boolean;
-        }>): void;
+        render(
+            options: Partial<{
+                scene: Transform;
+                camera: Camera;
+                target: RenderTarget;
+                update: boolean;
+                sort: boolean;
+                frustumCull: boolean;
+                clear: boolean;
+            }>
+        ): void;
     }
 
     /**
@@ -1644,22 +1662,26 @@ declare module 'ogl' {
 
         addPass(options?: Partial<Pass>): Pass;
 
-        resize(options?: Partial<{
-            width: number;
-            height: number;
-            dpr: number;
-        }>): void;
+        resize(
+            options?: Partial<{
+                width: number;
+                height: number;
+                dpr: number;
+            }>
+        ): void;
 
-        render(options: Partial<{
-            scene: Transform;
-            camera: Camera;
-            texture: Texture;
-            target: RenderTarget;
-            update: boolean;
-            sort: boolean;
-            frustumCull: boolean;
-            beforePostCallbacks: Function[];
-        }>): void;
+        render(
+            options: Partial<{
+                scene: Transform;
+                camera: Camera;
+                texture: Texture;
+                target: RenderTarget;
+                update: boolean;
+                sort: boolean;
+                frustumCull: boolean;
+                beforePostCallbacks: Function[];
+            }>
+        ): void;
     }
 
     /**
@@ -1676,9 +1698,9 @@ declare module 'ogl' {
     }
 
     export interface GPGPUOptions {
-        data: Float32Array
-        geometry: Triangle
-        type: Texture['type']
+        data: Float32Array;
+        geometry: Triangle;
+        type: Texture['type'];
     }
 
     export class GPGPU {
@@ -1739,7 +1761,7 @@ declare module 'ogl' {
 
         mesh: Mesh;
 
-        constructor(gl: OGLRenderingContext, options?: Partial<FlowmapOptions>)
+        constructor(gl: OGLRenderingContext, options?: Partial<FlowmapOptions>);
 
         update(): void;
     }
@@ -1767,17 +1789,17 @@ declare module 'ogl' {
 
         castMeshes: Mesh[];
 
-        constructor(gl: OGLRenderingContext, options?: Partial<ShadowOptions>)
+        constructor(gl: OGLRenderingContext, options?: Partial<ShadowOptions>);
 
         add(options: {
-            mesh: Mesh
-            receive?: boolean
-            cast?: boolean
-            vertex?: string
-            fragment?: string
-            uniformProjection?: string
-            uniformView?: string
-            uniformTexture?: string
+            mesh: Mesh;
+            receive?: boolean;
+            cast?: boolean;
+            vertex?: string;
+            fragment?: string;
+            uniformProjection?: string;
+            uniformView?: string;
+            uniformTexture?: string;
         }): void;
 
         setSize(options: { width?: number; height?: number }): void;
@@ -1800,7 +1822,10 @@ declare module 'ogl' {
 
         intersectBounds(meshes: Mesh | Mesh[], options?: { maxDistance?: number; output?: Mesh[] }): Mesh[];
 
-        intersectMeshes(meshes: Mesh[], options?: { cullFace?: boolean; maxDistance?: number; includeUV?: boolean; includeNormal?: boolean; output?: Mesh[] }): Mesh[];
+        intersectMeshes(
+            meshes: Mesh[],
+            options?: { cullFace?: boolean; maxDistance?: number; includeUV?: boolean; includeNormal?: boolean; output?: Mesh[] }
+        ): Mesh[];
 
         intersectPlane(plane: { origin: Vec3; normal: Vec3 }, origin?: Vec3, direction?: Vec3): Vec3;
 

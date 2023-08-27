@@ -102,9 +102,9 @@ const fragment = /* glsl */ `
     let mesh: Mesh,
         highlight: Mesh,
         objects: {
-            id: number,
-            offset: Vec3Tuple,
-            random: Vec3Tuple,
+            id: number;
+            offset: Vec3Tuple;
+            random: Vec3Tuple;
         }[] = [];
     {
         const num = 20;

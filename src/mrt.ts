@@ -1,16 +1,4 @@
-import {
-    Renderer,
-    Camera,
-    Transform,
-    Geometry,
-    Texture,
-    RenderTarget,
-    Program,
-    Mesh,
-    Vec3,
-    Orbit,
-    Triangle,
-} from 'ogl';
+import { Renderer, Camera, Transform, Geometry, Texture, RenderTarget, Program, Mesh, Vec3, Orbit, Triangle } from 'ogl';
 
 const vertex100 = /* glsl */ `
     attribute vec3 position;

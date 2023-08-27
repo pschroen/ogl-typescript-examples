@@ -1,17 +1,5 @@
-import {
-    Renderer,
-    Camera,
-    RenderTarget,
-    Geometry,
-    Program,
-    Mesh,
-    Color,
-    Vec2,
-    Box,
-    NormalProgram,
-    Post,
-} from 'ogl';
-import type {OGLRenderingContext, RenderTargetOptions} from 'ogl';
+import { Renderer, Camera, RenderTarget, Geometry, Program, Mesh, Color, Vec2, Box, NormalProgram, Post } from 'ogl';
+import type { OGLRenderingContext, RenderTargetOptions } from 'ogl';
 
 type LastMouse = Vec2 & { isInit: boolean };
 
@@ -303,7 +291,18 @@ const gradientSubtractShader = /* glsl */ `
     // Helper to create a ping-pong FBO pairing for simulating on GPU
     function createDoubleFBO(
         gl: OGLRenderingContext,
-        { width, height, wrapS, wrapT, minFilter = gl.LINEAR, magFilter = minFilter, type, format, internalFormat, depth }: Partial<RenderTargetOptions> = {}
+        {
+            width,
+            height,
+            wrapS,
+            wrapT,
+            minFilter = gl.LINEAR,
+            magFilter = minFilter,
+            type,
+            format,
+            internalFormat,
+            depth,
+        }: Partial<RenderTargetOptions> = {}
     ) {
         const options: Partial<RenderTargetOptions> = { width, height, wrapS, wrapT, minFilter, magFilter, type, format, internalFormat, depth };
         const fbo = {
@@ -335,7 +334,9 @@ const gradientSubtractShader = /* glsl */ `
 
     // Get supported formats and types for FBOs
     let supportLinearFiltering = gl.renderer.extensions[`OES_texture_${gl.renderer.isWebgl2 ? `` : `half_`}float_linear`];
-    const halfFloat = gl.renderer.isWebgl2 ? (gl as WebGL2RenderingContext).HALF_FLOAT : gl.renderer.extensions['OES_texture_half_float'].HALF_FLOAT_OES;
+    const halfFloat = gl.renderer.isWebgl2
+        ? (gl as WebGL2RenderingContext).HALF_FLOAT
+        : gl.renderer.extensions['OES_texture_half_float'].HALF_FLOAT_OES;
 
     const filtering = supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
     let rgba, rg, r;
