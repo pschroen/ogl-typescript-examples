@@ -1,116 +1,150 @@
-import { Renderer, Camera, Mesh, Vec2, Post, Box, NormalProgram } from 'ogl';
+import { Renderer, Camera, Transform, Program, Mesh, Vec2, Plane, Sphere, Box, Orbit, Raycast } from 'ogl';
+
+interface HitableMesh extends Mesh {
+    isHit?: boolean;
+}
+
+const vertex = /* glsl */ `
+    attribute vec3 position;
+    attribute vec3 normal;
+
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+
+    varying vec3 vNormal;
+
+    void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
 
 const fragment = /* glsl */ `
     precision highp float;
 
-    // Default uniform for previous pass is 'tMap'.
-    // Can change this using the 'textureUniform' property
-    // when adding a pass.
-    uniform sampler2D tMap;
+    uniform float uHit;
 
-    uniform vec2 uResolution;
-
-    varying vec2 vUv;
-
-    vec4 fxaa(sampler2D tex, vec2 uv, vec2 resolution) {
-        vec2 pixel = vec2(1) / resolution;
-
-        vec3 l = vec3(0.299, 0.587, 0.114);
-        float lNW = dot(texture2D(tex, uv + vec2(-1, -1) * pixel).rgb, l);
-        float lNE = dot(texture2D(tex, uv + vec2( 1, -1) * pixel).rgb, l);
-        float lSW = dot(texture2D(tex, uv + vec2(-1,  1) * pixel).rgb, l);
-        float lSE = dot(texture2D(tex, uv + vec2( 1,  1) * pixel).rgb, l);
-        float lM  = dot(texture2D(tex, uv).rgb, l);
-        float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
-        float lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
-
-        vec2 dir = vec2(
-            -((lNW + lNE) - (lSW + lSE)),
-            ((lNW + lSW) - (lNE + lSE))
-        );
-
-        float dirReduce = max((lNW + lNE + lSW + lSE) * 0.03125, 0.0078125);
-        float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
-        dir = min(vec2(8, 8), max(vec2(-8, -8), dir * rcpDirMin)) * pixel;
-
-        vec3 rgbA = 0.5 * (
-            texture2D(tex, uv + dir * (1.0 / 3.0 - 0.5)).rgb +
-            texture2D(tex, uv + dir * (2.0 / 3.0 - 0.5)).rgb);
-
-        vec3 rgbB = rgbA * 0.5 + 0.25 * (
-            texture2D(tex, uv + dir * -0.5).rgb +
-            texture2D(tex, uv + dir * 0.5).rgb);
-
-        float lB = dot(rgbB, l);
-
-        return mix(
-            vec4(rgbB, 1),
-            vec4(rgbA, 1),
-            max(sign(lB - lMin), 0.0) * max(sign(lB - lMax), 0.0)
-        );
-    }
+    varying vec3 vNormal;
 
     void main() {
-        vec4 raw = texture2D(tMap, vUv);
-        vec4 aa = fxaa(tMap, vUv, uResolution);
-
-        // Split screen in half to show side-by-side comparison
-        gl_FragColor = mix(raw, aa, step(0.5, vUv.x));
-
-        // Darken left side a tad for clarity
-        gl_FragColor -= step(vUv.x, 0.5) * 0.1;
+        vec3 normal = normalize(vNormal);
+        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
+        vec3 color = mix(vec3(0.2, 0.8, 1.0), vec3(1.0, 0.2, 0.8), uHit);
+        gl_FragColor.rgb = color + lighting * 0.1;
+        gl_FragColor.a = 1.0;
     }
 `;
 
 {
-    const renderer = new Renderer({ dpr: 1 });
+    const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(0, 1, 5);
-    camera.lookAt([0, 0, 0]);
+    const camera = new Camera(gl);
+    camera.position.set(2, 1, 5);
 
-    // Post copies the current renderer values (width, height, dpr) if none are passed in
-    const post = new Post(gl);
-
-    // Create uniform for pass
-    const resolution = { value: new Vec2() };
+    const orbit = new Orbit(camera);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
         camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
-
-        // Need to resize post as render targets need to be re-created
-        post.resize();
-        resolution.value.set(gl.canvas.width, gl.canvas.height);
     }
     window.addEventListener('resize', resize, false);
     resize();
 
-    const geometry = new Box(gl);
-    const mesh = new Mesh(gl, { geometry, program: new NormalProgram(gl) });
+    const scene = new Transform();
 
-    // Add pass like you're creating a Program. Then use the 'enabled'
-    // property to toggle the pass.
-    const pass = post.addPass({
-        // If not passed in, pass will use the default vertex/fragment
-        // shaders found within the class.
+    const planeGeometry = new Plane(gl);
+    const sphereGeometry = new Sphere(gl);
+    const cubeGeometry = new Box(gl);
+
+    const program = new Program(gl, {
+        vertex,
         fragment,
+        cullFace: false,
         uniforms: {
-            uResolution: resolution,
+            uHit: { value: 0 },
         },
     });
+
+    const plane = new Mesh(gl, { geometry: planeGeometry, program });
+    plane.position.set(0, 1.3, 0);
+    plane.setParent(scene);
+
+    const sphere = new Mesh(gl, { geometry: sphereGeometry, program });
+    sphere.setParent(scene);
+
+    const cube = new Mesh(gl, { geometry: cubeGeometry, program });
+    cube.position.set(0, -1.3, 0);
+    cube.setParent(scene);
+
+    // assign update functions to each mesh so they can share a program but
+    // still have unique uniforms by updating them just before being drawn
+    function updateHitUniform({ mesh }: { mesh: HitableMesh }) {
+        program.uniforms.uHit.value = mesh.isHit ? 1 : 0;
+    }
+    plane.onBeforeRender(updateHitUniform);
+    sphere.onBeforeRender(updateHitUniform);
+    cube.onBeforeRender(updateHitUniform);
 
     requestAnimationFrame(update);
     function update() {
         requestAnimationFrame(update);
 
-        mesh.rotation.y -= 0.005;
-        mesh.rotation.x -= 0.01;
+        orbit.update();
+        renderer.render({ scene, camera });
+    }
 
-        // Replace Renderer.render with post.render. Use the same arguments.
-        post.render({ scene: mesh, camera });
+    const mouse = new Vec2();
+
+    // Create a raycast object
+    const raycast = new Raycast();
+
+    // Define an array of the meshes we want to test our ray against
+    const meshes: HitableMesh[] = [plane, sphere, cube];
+
+    // By default, raycast.intersectBounds() tests against the bounding box.
+    // Set it to bounding sphere by adding a 'raycast' property set to sphere geometry
+    sphere.geometry.raycast = 'sphere';
+
+    // Wrap in load event to prevent checks before page is ready
+    window.addEventListener(
+        'load',
+        () => {
+            document.addEventListener('mousemove', move, false);
+            document.addEventListener('touchmove', move, false);
+        },
+        false
+    );
+
+    function move(e: TouchEvent | MouseEvent) {
+        mouse.set(2.0 * ((e as MouseEvent).x / renderer.width) - 1.0, 2.0 * (1.0 - (e as MouseEvent).y / renderer.height) - 1.0);
+
+        // Update the ray's origin and direction using the camera and mouse
+        raycast.castMouse(camera, mouse);
+
+        // Just for the feedback in this example - reset each mesh's hit to false
+        meshes.forEach((mesh: HitableMesh) => (mesh.isHit = false));
+
+        // raycast.intersectBounds will test against the bounds of each mesh, and
+        // return an array of intersected meshes in order of closest to farthest
+        const hits: HitableMesh[] = raycast.intersectBounds(meshes);
+
+        // Can intersect with geometry if the bounds aren't enough, or if you need
+        // to find out the uv or normal value at the hit point.
+        // Optional arguments include backface culling `cullFace`, and `maxDistance`
+        // Both useful for doing early exits to help optimise.
+        // const hits = raycast.intersectMeshes(meshes, {
+        //     cullFace: true,
+        //     maxDistance: 10,
+        //     includeUV: true,
+        //     includeNormal: true,
+        // });
+        // if (hits.length) console.log(hits[0].hit.uv);
+
+        // Update our feedback using this array
+        hits.forEach((mesh: HitableMesh) => (mesh.isHit = true));
     }
 }

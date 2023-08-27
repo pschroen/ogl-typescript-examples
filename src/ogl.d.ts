@@ -45,13 +45,15 @@ declare module 'ogl' {
      *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec2.js | Source}
      */
+    export type Vec2Tuple = [x: number, y: number];
+
     export class Vec2 extends Array<number> {
         x: number;
         y: number;
 
         constructor(x?: number, y?: number);
 
-        set(x: number, y?: number): this;
+        set(x: number | Vec2 | Vec2Tuple, y?: number): this;
 
         copy(v: Vec2): this;
 
@@ -480,7 +482,7 @@ declare module 'ogl' {
 
         updateFrustum(): void;
 
-        frustumIntersectsMesh(node: any, worldMatrix?: Mat4): boolean;
+        frustumIntersectsMesh(node: Mesh, worldMatrix?: Mat4): boolean;
 
         frustumIntersectsSphere(center: Vec3, radius: number): boolean;
     }
@@ -527,16 +529,22 @@ declare module 'ogl' {
         attributes: AttributeMap;
         id: number;
 
-        VAOs: object;
+        VAOs: {
+            [programKey: string]: WebGLVertexArrayObject;
+        };
+
         drawRange: {
             start: number;
             count: number;
         };
         instancedCount: number;
+
         glState: RenderState;
 
         isInstanced: boolean;
         bounds: Bounds;
+
+        raycast?: 'sphere' | 'box'
 
         constructor(gl: OGLRenderingContext, attributes?: AttributeMap);
 
@@ -1617,6 +1625,26 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Raycast.js | Source}
      */
     export class Raycast {
+        origin: Vec3;
+        direction: Vec3;
+
+        constructor();
+
+        castMouse(camera: Camera, mouse?: Vec2 | Vec2Tuple): void;
+
+        intersectBounds(meshes: Mesh | Mesh[], options?: { maxDistance?: number; output?: Mesh[] }): Mesh[];
+
+        intersectMeshes(meshes: Mesh[], options?: { cullFace?: boolean; maxDistance?: number; includeUV?: boolean; includeNormal?: boolean; output?: Mesh[] }): Mesh[];
+
+        intersectPlane(plane: { origin: Vec3; normal: Vec3 }, origin?: Vec3, direction?: Vec3): Vec3;
+
+        intersectSphere(sphere: Bounds, origin?: Vec3, direction?: Vec3): number;
+
+        intersectBox(box: Bounds, origin?: Vec3, direction?: Vec3): number;
+
+        intersectTriangle(a: Vec3, b: Vec3, c: Vec3, backfaceCulling?: boolean, origin?: Vec3, direction?: Vec3, normal?: Vec3): number;
+
+        getBarycoord(point: Vec3, a: Vec3, b: Vec3, c: Vec3, target?: Vec3): Vec3;
     }
 
     /**
