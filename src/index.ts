@@ -1,74 +1,130 @@
-import { Renderer, Program, Color, Mesh, Triangle } from 'ogl';
+import { Renderer, Camera, Transform, Program, Mesh, Sphere, Orbit, Vec3, Color, Path, Tube } from 'ogl';
 
-const vertex = /* glsl */ `
+const vertexColor = /* glsl */ `
+    attribute vec3 position;
+    attribute vec3 normal;
+
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+
+    varying vec3 vNormal;
+
+    void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const fragmentColor = /* glsl */ `
+    precision highp float;
+    uniform vec3 uColor;
+    varying vec3 vNormal;
+
+    void main() {
+        vec3 normal = normalize(vNormal);
+        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
+        gl_FragColor.rgb = uColor + lighting * 0.1;
+        gl_FragColor.a = 1.0;
+    }
+`;
+
+const vertexUv = /* glsl */ `
+    attribute vec3 position;
     attribute vec2 uv;
-    attribute vec2 position;
-
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
     varying vec2 vUv;
 
     void main() {
         vUv = uv;
-        gl_Position = vec4(position, 0, 1);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
 
-const fragment = /* glsl */ `
+const fragmentUv = /* glsl */ `
     precision highp float;
-
-    uniform float uTime;
-    uniform vec3 uColor;
-
     varying vec2 vUv;
 
     void main() {
-        gl_FragColor.rgb = 0.5 + 0.3 * cos(vUv.xyx + uTime) + uColor;
+        if (cos(vUv.x * 512.0) < 0.0) discard;
+        gl_FragColor.rgb = vec3(cos(vUv * 6.283185307179586) * 0.5 + 0.5, 1.0);
         gl_FragColor.a = 1.0;
     }
 `;
 
 {
-    const renderer = new Renderer();
+    const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(0, 0, 5);
+
+    // Create controls and pass parameters
+    const controls = new Orbit(camera, {
+        target: new Vec3(0, 0, 0),
+    });
+
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
     }
     window.addEventListener('resize', resize, false);
     resize();
 
-    // Rather than using a plane (two triangles) to cover the viewport here is a
-    // triangle that includes -1 to 1 range for 'position', and 0 to 1 range for 'uv'.
-    // Excess will be out of the viewport.
+    const scene = new Transform();
 
-    //         position                uv
-    //      (-1, 3)                  (0, 2)
-    //         |\                      |\
-    //         |__\(1, 1)              |__\(1, 1)
-    //         |__|_\                  |__|_\
-    //   (-1, -1)   (3, -1)        (0, 0)   (2, 0)
+    // First three is for moveTo command, rest for bezierCurveTo command
+    const pathCoords = [-1.0, 0.0, 0.0, -0.9368709325790405, 0.1762027144432068, 0.04529910162091255, -0.7061498761177063, 0.089231938123703, 0.19381383061408997, -0.6332840919494629, 0.2674865424633026, 0.1930660903453827, -0.5615311861038208, 0.4430185854434967, 0.1923297792673111, -0.7734173536300659, 0.5522762537002563, 0.08718681335449219, -0.7070468664169312, 0.7070468664169312, 0.0, -0.6498651504516602, 0.8403899073600769, -0.07511603832244873, -0.5399253368377686, 0.8584117889404297, -0.16668838262557983, -0.38917776942253113, 0.921392560005188, -0.1677459478378296, -0.23391252756118774, 0.9862607717514038, -0.16883520781993866, -0.14611071348190308, 1.0727460384368896, -0.04093937203288078, 0.0, 1.0, 0.0, 0.1674281358718872, 0.9166403412818909, 0.046912387013435364, 0.07777689397335052, 0.6478093862533569, -0.06732462346553802, 0.2400655597448349, 0.5683639645576477, 0.0, 0.4298238456249237, 0.4754713177680969, 0.07872024923563004, 0.49316900968551636, 0.7766210436820984, 0.32597726583480835, 0.7070468664169312, 0.7070468664169312, 0.3101717531681061, 0.8896822333335876, 0.647635817527771, 0.29667505621910095, 0.8556811809539795, 0.5579423308372498, 0.06533028930425644, 0.921392560005188, 0.38917776942253113, 0.0, 0.9742976427078247, 0.2533031702041626, -0.05259828269481659, 1.0508142709732056, 0.14183028042316437, -0.036462459713220596, 1.0, 0.0, 0.0, 0.9368709325790405, -0.1762027144432068, 0.04529910162091255, 0.7061498761177063, -0.089231938123703, 0.19381383061408997, 0.6332840919494629, -0.2674865424633026, 0.1930660903453827, 0.5615311861038208, -0.4430185854434967, 0.1923297792673111, 0.7734173536300659, -0.5522762537002563, 0.08718681335449219, 0.7070468664169312, -0.7070468664169312, 0.0, 0.6498651504516602, -0.8403899073600769, -0.07511603832244873, 0.5399253368377686, -0.8584117889404297, -0.16668838262557983, 0.38917776942253113, -0.921392560005188, -0.1677459478378296, 0.23391252756118774, -0.9862607717514038, -0.16883520781993866, 0.14611071348190308, -1.0727460384368896, -0.04093937203288078, 0.0, -1.0, 0.0, -0.1674281358718872, -0.9166403412818909, 0.046912387013435364, -0.07777689397335052, -0.6478093862533569, -0.06732462346553802, -0.2400655597448349, -0.5683639645576477, 0.0, -0.4298238456249237, -0.4754713177680969, 0.07872024923563004, -0.49316900968551636, -0.7766210436820984, 0.32597726583480835, -0.7070468664169312, -0.7070468664169312, 0.3101717531681061, -0.8896822333335876, -0.647635817527771, 0.29667505621910095, -0.8556811809539795, -0.5579423308372498, 0.06533028930425644, -0.921392560005188, -0.38917776942253113, 0.0, -0.9742976427078247, -0.2533031702041626, -0.05259828269481659, -1.0508142709732056, -0.14183028042316437, -0.036462459713220596, -1.0, 0.0, 0.0];
 
-    const geometry = new Triangle(gl);
+    const path = new Path();
+    path.tiltFunction = (angle: number, t: number, path: object) => 8 * 360 * t;
 
-    const program = new Program(gl, {
-        vertex,
-        fragment,
+    path.moveTo(new Vec3(pathCoords[0], pathCoords[1], pathCoords[2]));
+    for (let i = 3; i < pathCoords.length; i += 9) {
+        const cp1 = new Vec3(pathCoords[i + 0], pathCoords[i + 1], pathCoords[i + 2]);
+        const cp2 = new Vec3(pathCoords[i + 3], pathCoords[i + 4], pathCoords[i + 5]);
+        const p = new Vec3(pathCoords[i + 6], pathCoords[i + 7], pathCoords[i + 8]);
+        path.bezierCurveTo(cp1, cp2, p);
+    }
+
+    const pathSubdivisions = 256;
+    path.getPoints(pathSubdivisions);
+    path.computeFrenetFrames(pathSubdivisions, true);
+
+    const tubeGeom = new Tube(gl, { path, radius: 0.1, tubularSegments: 256, radialSegments: 16, closed: true });
+    const tubeProg = new Program(gl, {
+        vertex: vertexUv,
+        fragment: fragmentUv,
+        cullFace: false
+    });
+    const tubeMesh = new Mesh(gl, { geometry: tubeGeom, program: tubeProg });
+    tubeMesh.setParent(scene);
+
+    const sphereGeom = new Sphere(gl);
+    const sphereProg = new Program(gl, {
+        vertex: vertexColor,
+        fragment: fragmentColor,
         uniforms: {
-            uTime: { value: 0 },
-            uColor: { value: new Color(0.3, 0.2, 0.5) },
-        },
+            uColor: { value: new Color('#4caf50') }
+        }
     });
 
-    const mesh = new Mesh(gl, { geometry, program });
+    const sphereMesh = new Mesh(gl, { geometry: sphereGeom, program: sphereProg });
+    sphereMesh.scale.set(0.1);
+    sphereMesh.setParent(scene);
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        program.uniforms.uTime.value = t * 0.001;
+        const progress = (t * 0.0001) % 1;
+        controls.update();
 
-        // Don't need a camera if camera uniforms aren't required
-        renderer.render({ scene: mesh });
+        path.getPointAt(progress, sphereMesh.position);
+
+        renderer.render({ scene, camera });
     }
 }

@@ -334,7 +334,7 @@ declare module 'ogl' {
 
         getPoints(divisions?: number): Vec3[];
 
-        computeFrenetFrames(divisions?: number, closed?: boolean): {tangents: Vec3[], normals: Vec3[], binormals: Vec3[]};
+        computeFrenetFrames(divisions?: number, closed?: boolean): { tangents: Vec3[], normals: Vec3[], binormals: Vec3[] };
     }
 
     /**
@@ -692,6 +692,37 @@ declare module 'ogl' {
 
     export class Torus extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<TorusOptions>);
+    }
+
+    /**
+     * A tube geometry.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Tube.js | Source}
+     */
+    export interface TubeOptions {
+        path: Path;
+        radius: number;
+        tubularSegments: number;
+        radialSegments: number;
+        closed: boolean;
+        attributes: AttributeMap;
+    }
+
+    export class Tube extends Geometry {
+        path: Path;
+        radius: number;
+        tubularSegments: number;
+        radialSegments: number;
+        closed: boolean;
+
+        frenetFrames: object;
+
+        positions: Float32Array;
+        normals: Float32Array;
+        uvs: Float32Array;
+        indices: Uint32Array | Uint16Array;
+
+        constructor(gl: OGLRenderingContext, options?: Partial<TubeOptions>);
     }
 
     /**
