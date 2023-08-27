@@ -1,8 +1,8 @@
 // Type definitions for ogl 1.0.0
 // Project: https://github.com/oframe/ogl
-// Definitions by: Patrick Schroen <https://github.com/pschroen>
+// Definitions by: Xin Chen <https://github.com/nshen>
 //                 Cody Bennett <https://github.com/CodyJasonBennett>
-//                 Xin Chen <https://github.com/nshen>
+//                 Patrick Schroen <https://github.com/pschroen>
 // Definitions: https://github.com/oframe/ogl
 
 declare module 'ogl' {
