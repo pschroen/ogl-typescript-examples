@@ -1,38 +1,42 @@
-import { Renderer, Camera, Texture, RenderTarget, Program, Mesh, Box } from 'ogl';
+import { Renderer, Camera, Program, Transform, Mesh, Sphere, Box } from 'ogl';
+
+type Shape = Mesh & { speed: number };
 
 const vertex = /* glsl */ `
     attribute vec3 position;
     attribute vec3 normal;
-    attribute vec2 uv;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
     uniform mat3 normalMatrix;
 
-    varying vec2 vUv;
     varying vec3 vNormal;
+    varying vec4 vMVPos;
 
     void main() {
-        vUv = uv;
         vNormal = normalize(normalMatrix * normal);
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vMVPos = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * vMVPos;
     }
 `;
 
 const fragment = /* glsl */ `
     precision highp float;
 
-    uniform sampler2D tMap;
-
-    varying vec2 vUv;
     varying vec3 vNormal;
+    varying vec4 vMVPos;
 
     void main() {
         vec3 normal = normalize(vNormal);
-        float lighting = 0.2 * dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
-        vec3 tex = texture2D(tMap, vUv).rgb;
-        gl_FragColor.rgb = tex + lighting + vec3(vUv - 0.5, 0.0) * 0.1;
+        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
+        vec3 color = vec3(1.0, 0.5, 0.2) * (1.0 - 0.5 * lighting) + vMVPos.xzy * 0.1;
+
+        float dist = length(vMVPos);
+        float fog = smoothstep(4.0, 10.0, dist);
+        color = mix(color, vec3(1.0), fog);
+
+        gl_FragColor.rgb = color;
         gl_FragColor.a = 1.0;
     }
 `;
@@ -41,79 +45,67 @@ const fragment = /* glsl */ `
     const renderer = new Renderer({ dpr: 2 });
     const gl = renderer.gl;
     document.body.appendChild(gl.canvas);
+    gl.clearColor(1, 1, 1, 1);
 
+    // The Camera class extends Transform. See Below for more on Transform.
     const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(0, 1, 5);
+    camera.position.set(0, 1, 7);
     camera.lookAt([0, 0, 0]);
-
-    const targetCamera = new Camera(gl, { fov: 35 });
-    targetCamera.position.set(0, 1, 5);
-    targetCamera.lookAt([0, 0, 0]);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
-
-        // Only update aspect of target camera, as first scene will be drawn to a square render target
-        targetCamera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
+        camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
     }
     window.addEventListener('resize', resize, false);
     resize();
 
-    const geometry = new Box(gl);
-
-    // A little data texture with 4 colors just to keep things interesting
-    const texture = new Texture(gl, {
-        image: new Uint8Array([191, 25, 54, 255, 96, 18, 54, 255, 96, 18, 54, 255, 37, 13, 53, 255]),
-        width: 2,
-        height: 2,
-        magFilter: gl.NEAREST,
-    });
+    const sphereGeometry = new Sphere(gl, { radius: 0.15 });
+    const cubeGeometry = new Box(gl, { width: 0.3, height: 0.3, depth: 0.3 });
 
     const program = new Program(gl, {
         vertex,
         fragment,
-        uniforms: {
-            tMap: { value: texture },
-        },
     });
 
-    // Create render target framebuffer.
-    // Uses canvas size by default and doesn't automatically resize.
-    // To resize, re-create target
-    const target = new RenderTarget(gl, {
-        width: 512,
-        height: 512,
-    });
+    // The scene hierarchy is controlled by the Transform class
+    // To create scenes, groups, null pointers etc, use Transform
+    const scene = new Transform();
 
-    const targetProgram = new Program(gl, {
-        vertex,
-        fragment,
-        uniforms: {
-            tMap: { value: target.texture },
-        },
-    });
+    // The Mesh class extends the Transform class, and so shares the scene graph functionality
+    const sphere = new Mesh(gl, { geometry: sphereGeometry, program }) as Shape;
+    sphere.speed = -0.5;
 
-    const mesh = new Mesh(gl, { geometry, program });
-    const targetMesh = new Mesh(gl, { geometry, program: targetProgram });
+    // Use .setParent to add transform as a child of another transform
+    sphere.setParent(scene);
+    // scene.addChild(sphere); // also works
+
+    const shapes = [sphere];
+
+    // Create random array of shapes
+    for (let i = 0; i < 50; i++) {
+        const geometry = Math.random() > 0.5 ? cubeGeometry : sphereGeometry;
+        const shape = new Mesh(gl, { geometry, program }) as Shape;
+        shape.scale.set(Math.random() * 0.3 + 0.7);
+        shape.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+        shape.speed = (Math.random() - 0.5) * 0.7;
+
+        // Attach them to a random, previously created shape
+        shape.setParent(shapes[Math.floor(Math.random() * shapes.length)]);
+        shapes.push(shape);
+    }
 
     requestAnimationFrame(update);
-    function update() {
+    function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        mesh.rotation.y -= 0.02;
-        targetMesh.rotation.y -= 0.005;
-        targetMesh.rotation.x -= 0.01;
+        shapes.forEach((shape) => {
+            shape.rotation.y += 0.03 * shape.speed;
+            shape.rotation.x += 0.04 * shape.speed;
+            shape.rotation.z += 0.01 * shape.speed;
+        });
 
-        // Set background for first render to target
-        gl.clearColor(0.15, 0.05, 0.2, 1);
-
-        // Add target property to render call
-        renderer.render({ scene: mesh, camera, target });
-
-        // Change to final background
-        gl.clearColor(1, 1, 1, 1);
-
-        // Omit target to render to canvas
-        renderer.render({ scene: targetMesh, camera: targetCamera });
+        // The 'scene' property in the render call expects any Transform.
+        // Therefore can be a Mesh instance as well.
+        renderer.render({ scene, camera });
     }
 }
