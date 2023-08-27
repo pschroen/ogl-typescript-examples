@@ -1,42 +1,63 @@
-import { Renderer, Camera, Program, Transform, Mesh, Sphere, Box } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Geometry, Mesh, Orbit, Plane, Shadow } from 'ogl';
 
-type Shape = Mesh & { speed: number };
-
-const vertex = /* glsl */ `
+const vertexColor = /* glsl */ `
     attribute vec3 position;
-    attribute vec3 normal;
+    attribute vec2 uv;
 
+    uniform mat4 modelMatrix;
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
-    uniform mat3 normalMatrix;
 
-    varying vec3 vNormal;
-    varying vec4 vMVPos;
+    uniform mat4 shadowViewMatrix;
+    uniform mat4 shadowProjectionMatrix;
+
+    varying vec2 vUv;
+    varying vec4 vLightNDC;
+
+    // Matrix to shift range from -1->1 to 0->1
+    const mat4 depthScaleMatrix = mat4(
+        0.5, 0, 0, 0,
+        0, 0.5, 0, 0,
+        0, 0, 0.5, 0,
+        0.5, 0.5, 0.5, 1
+    );
 
     void main() {
-        vNormal = normalize(normalMatrix * normal);
+        vUv = uv;
 
-        vMVPos = modelViewMatrix * vec4(position, 1.0);
-        gl_Position = projectionMatrix * vMVPos;
+        // Calculate the NDC (normalized device coords) for the light to compare against shadowmap
+        vLightNDC = depthScaleMatrix * shadowProjectionMatrix * shadowViewMatrix * modelMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
 `;
 
-const fragment = /* glsl */ `
+const fragmentColor = /* glsl */ `
     precision highp float;
 
-    varying vec3 vNormal;
-    varying vec4 vMVPos;
+    uniform sampler2D tMap;
+    uniform sampler2D tShadow;
+
+    varying vec2 vUv;
+    varying vec4 vLightNDC;
+
+    float unpackRGBA (vec4 v) {
+        return dot(v, 1.0 / vec4(1.0, 255.0, 65025.0, 16581375.0));
+    }
 
     void main() {
-        vec3 normal = normalize(vNormal);
-        float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
-        vec3 color = vec3(1.0, 0.5, 0.2) * (1.0 - 0.5 * lighting) + vMVPos.xzy * 0.1;
+        vec3 tex = texture2D(tMap, vUv).rgb;
 
-        float dist = length(vMVPos);
-        float fog = smoothstep(4.0, 10.0, dist);
-        color = mix(color, vec3(1.0), fog);
+        vec3 lightPos = vLightNDC.xyz / vLightNDC.w;
 
-        gl_FragColor.rgb = color;
+        float bias = 0.001;
+        float depth = lightPos.z - bias;
+        float occluder = unpackRGBA(texture2D(tShadow, lightPos.xy));
+
+        // Compare actual depth from light to the occluded depth rendered in the depth map
+        // If the occluded depth is smaller, we must be in shadow
+        float shadow = mix(0.2, 1.0, step(depth, occluder));
+
+        gl_FragColor.rgb = tex * shadow;
         gl_FragColor.a = 1.0;
     }
 `;
@@ -47,10 +68,10 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    // The Camera class extends Transform. See Below for more on Transform.
     const camera = new Camera(gl, { fov: 35 });
-    camera.position.set(0, 1, 7);
-    camera.lookAt([0, 0, 0]);
+    camera.position.set(5, 4, 10);
+
+    const controls = new Orbit(camera);
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -59,53 +80,106 @@ const fragment = /* glsl */ `
     window.addEventListener('resize', resize, false);
     resize();
 
-    const sphereGeometry = new Sphere(gl, { radius: 0.15 });
-    const cubeGeometry = new Box(gl, { width: 0.3, height: 0.3, depth: 0.3 });
-
-    const program = new Program(gl, {
-        vertex,
-        fragment,
-    });
-
-    // The scene hierarchy is controlled by the Transform class
-    // To create scenes, groups, null pointers etc, use Transform
     const scene = new Transform();
 
-    // The Mesh class extends the Transform class, and so shares the scene graph functionality
-    const sphere = new Mesh(gl, { geometry: sphereGeometry, program }) as Shape;
-    sphere.speed = -0.5;
+    // Swap between the 'fov' and 'left/right/etc' lines to switch from an orthographic to perspective camera,
+    // and hence, directional light to spotlight projection.
+    const light = new Camera(gl, {
+        left: -3,
+        right: 3,
+        bottom: -3,
+        top: 3,
+        // fov: 30,
 
-    // Use .setParent to add transform as a child of another transform
-    sphere.setParent(scene);
-    // scene.addChild(sphere); // also works
+        near: 1,
+        far: 20,
+    });
+    light.position.set(3, 10, 3);
+    light.lookAt([0, 0, 0]);
 
-    const shapes = [sphere];
+    // Create shadow instance attached to light camera
+    const shadow = new Shadow(gl, { light });
 
-    // Create random array of shapes
-    for (let i = 0; i < 50; i++) {
-        const geometry = Math.random() > 0.5 ? cubeGeometry : sphereGeometry;
-        const shape = new Mesh(gl, { geometry, program }) as Shape;
-        shape.scale.set(Math.random() * 0.3 + 0.7);
-        shape.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
-        shape.speed = (Math.random() - 0.5) * 0.7;
+    addAirplane();
+    addGround();
 
-        // Attach them to a random, previously created shape
-        shape.setParent(shapes[Math.floor(Math.random() * shapes.length)]);
-        shapes.push(shape);
+    let airplane: Mesh;
+    async function addAirplane() {
+        const texture = new Texture(gl);
+        const img = new Image();
+        img.onload = () => (texture.image = img);
+        img.src = 'assets/airplane.jpg';
+
+        const program = new Program(gl, {
+            vertex: vertexColor,
+            fragment: fragmentColor,
+            uniforms: {
+                tMap: { value: texture },
+            },
+            cullFace: false,
+        });
+
+        const data = await (await fetch(`assets/airplane.json`)).json();
+
+        const geometry = new Geometry(gl, {
+            position: { size: 3, data: new Float32Array(data.position) },
+            uv: { size: 2, data: new Float32Array(data.uv) },
+            normal: { size: 3, data: new Float32Array(data.normal) },
+        });
+
+        const mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(scene);
+
+        // Use the 'add' method to attach the mesh to the shadow map
+        shadow.add({ mesh });
+
+        airplane = mesh;
+    }
+
+    function addGround() {
+        const texture = new Texture(gl);
+        const img = new Image();
+        img.onload = () => (texture.image = img);
+        img.src = 'assets/water.jpg';
+
+        const program = new Program(gl, {
+            vertex: vertexColor,
+            fragment: fragmentColor,
+            uniforms: {
+                tMap: { value: texture },
+            },
+            cullFace: false,
+        });
+
+        const geometry = new Plane(gl);
+
+        const mesh = new Mesh(gl, { geometry, program });
+        mesh.setParent(scene);
+
+        // Use the 'add' method to attach the mesh to the shadow map
+        shadow.add({ mesh });
+
+        mesh.rotation.x = Math.PI / 2;
+        mesh.scale.set(6);
+        mesh.position.y = -3;
     }
 
     requestAnimationFrame(update);
     function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
+        controls.update();
 
-        shapes.forEach((shape) => {
-            shape.rotation.y += 0.03 * shape.speed;
-            shape.rotation.x += 0.04 * shape.speed;
-            shape.rotation.z += 0.01 * shape.speed;
-        });
+        // A bit of plane animation
+        if (airplane) {
+            airplane.position.z = Math.sin(t * 0.001);
+            airplane.rotation.x = Math.sin(t * 0.001 + 2) * 0.1;
+            airplane.rotation.y = Math.sin(t * 0.001 - 4) * -0.1;
+        }
 
-        // The 'scene' property in the render call expects any Transform.
-        // Therefore can be a Mesh instance as well.
+        // Render cast meshes to shadow map
+        shadow.render({ scene });
+
+        // Render the scene (with shadows) to the canvas
         renderer.render({ scene, camera });
     }
 }

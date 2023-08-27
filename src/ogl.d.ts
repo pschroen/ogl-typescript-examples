@@ -696,6 +696,7 @@ declare module 'ogl' {
 
     /**
      * A text geometry.
+     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Text.js | Source}
      */
     export type TextAlign = 'left' | 'right' | 'center';
@@ -725,9 +726,9 @@ declare module 'ogl' {
 
         constructor(parameters?: Partial<TextOptions>);
 
-        resize(options: {width: number}): void;
+        resize(options: { width: number }): void;
 
-        update(options: {text: string}): void;
+        update(options: { text: string }): void;
     }
 
     /**
@@ -1600,7 +1601,7 @@ declare module 'ogl' {
     export class Flowmap {
         gl: OGLRenderingContext;
 
-        uniform: { value: any };
+        uniform: { value: RenderTarget['texture'] | null };
 
         mask: {
             read: RenderTarget;
@@ -1617,6 +1618,47 @@ declare module 'ogl' {
         constructor(gl: OGLRenderingContext, options?: Partial<FlowmapOptions>)
 
         update(): void;
+    }
+
+    /**
+     * Shadow map.
+     *
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Shadow.js | Source}
+     */
+    export interface ShadowOptions {
+        light: Camera;
+        width: number;
+        height: number;
+    }
+
+    export class Shadow {
+        gl: OGLRenderingContext;
+
+        light: Camera;
+
+        target: RenderTarget;
+        targetUniform: { value: RenderTarget['texture'] | null };
+
+        depthProgram: Program;
+
+        castMeshes: Mesh[];
+
+        constructor(gl: OGLRenderingContext, options?: Partial<ShadowOptions>)
+
+        add(options: {
+            mesh: Mesh
+            receive?: boolean
+            cast?: boolean
+            vertex?: string
+            fragment?: string
+            uniformProjection?: string
+            uniformView?: string
+            uniformTexture?: string
+        }): void;
+
+        setSize(options: { width?: number; height?: number }): void;
+
+        render(options: { scene: Transform }): void;
     }
 
     /**
