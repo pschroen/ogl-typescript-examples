@@ -1,18 +1,24 @@
-import { Renderer, Program, Mesh, Camera, Transform, Texture, Sphere, Orbit } from 'ogl';
+import { Renderer, Camera, Transform, Texture, Program, Mesh, Color, Plane } from 'ogl';
+
+type Shape = Mesh & { speed: number };
 
 const vertex = /* glsl */ `
     attribute vec2 uv;
     attribute vec3 position;
-    attribute vec3 normal;
 
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
 
     varying vec2 vUv;
+    varying vec4 vMVPos;
 
     void main() {
         vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec3 pos = position;
+        float dist = pow(length(vUv - 0.5), 2.0) - 0.25;
+        pos.z += dist * 0.5;
+        vMVPos = modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * vMVPos;
     }
 `;
 
@@ -20,16 +26,28 @@ const fragment = /* glsl */ `
     precision highp float;
 
     uniform sampler2D tMap;
+    uniform vec3 uColor;
 
     varying vec2 vUv;
+    varying vec4 vMVPos;
 
     void main() {
-        vec3 tex = texture2D(tMap, vUv).rgb;
+        float alpha = texture2D(tMap, vUv).g;
 
-        gl_FragColor.rgb = tex;
-        gl_FragColor.a = 1.0;
+        vec3 color = uColor + vMVPos.xzy * 0.05;
+
+        float dist = length(vMVPos);
+        float fog = smoothstep(5.0, 10.0, dist);
+        color = mix(color, vec3(1.0), fog);
+
+        gl_FragColor.rgb = color;
+        gl_FragColor.a = alpha;
+        if (alpha < 0.01) discard;
     }
 `;
+
+// This demonstrates the default geometry sorting before rendering.
+// It does not include sorting between faces/points within a single geometry.
 
 {
     const renderer = new Renderer({ dpr: 2 });
@@ -37,13 +55,9 @@ const fragment = /* glsl */ `
     document.body.appendChild(gl.canvas);
     gl.clearColor(1, 1, 1, 1);
 
-    const camera = new Camera(gl, { fov: 45 });
-    camera.position.set(0, 0, 8);
-
-    const controls = new Orbit(camera, {
-        enablePan: false,
-        enableZoom: false,
-    });
+    const camera = new Camera(gl, { fov: 35 });
+    camera.position.set(0, 0, 7);
+    camera.rotation.z = -0.3;
 
     function resize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -54,40 +68,53 @@ const fragment = /* glsl */ `
 
     const scene = new Transform();
 
-    // Texture is equirectangular
+    const geometry = new Plane(gl, {
+        widthSegments: 10,
+        heightSegments: 10,
+    });
+
     const texture = new Texture(gl);
     const img = new Image();
     img.onload = () => (texture.image = img);
-    img.src = 'assets/sky.jpg';
-
-    // Use Sphere geometry to render equirectangular textures
-    const geometry = new Sphere(gl, { radius: 1, widthSegments: 64 });
+    img.src = 'assets/leaf.jpg';
 
     const program = new Program(gl, {
         vertex,
         fragment,
         uniforms: {
             tMap: { value: texture },
+            uColor: { value: new Color('#ffc219') },
         },
-
-        // Need inside of sphere to be visible
+        transparent: true,
         cullFace: false,
     });
 
-    // A smaller sphere in the center just to help illustrate
-    const mesh = new Mesh(gl, { geometry, program });
-    mesh.setParent(scene);
+    const meshes: Shape[] = [];
 
-    // Camera will dwell inside skybox
-    const skybox = new Mesh(gl, { geometry, program });
-    skybox.scale.set(10);
-    skybox.setParent(scene);
+    for (let i = 0; i < 50; i++) {
+        const mesh = new Mesh(gl, { geometry, program }) as Shape;
+        mesh.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 3);
+        mesh.rotation.set(0, (Math.random() - 0.5) * 6.28, (Math.random() - 0.5) * 6.28);
+        mesh.scale.set(Math.random() * 0.5 + 0.2);
+        mesh.speed = Math.random() * 1.5 + 0.2;
+        mesh.setParent(scene);
+        meshes.push(mesh);
+    }
 
     requestAnimationFrame(update);
-    function update() {
+    function update(t: DOMHighResTimeStamp) {
         requestAnimationFrame(update);
 
-        controls.update();
+        meshes.forEach((mesh) => {
+            mesh.rotation.y += 0.05;
+            mesh.rotation.z += 0.05;
+            mesh.position.y -= 0.02 * mesh.speed;
+            if (mesh.position.y < -3) mesh.position.y += 6;
+        });
+
+        scene.rotation.y += 0.015;
+
+        // Objects are automatically sorted if renderer.sort === true
         renderer.render({ scene, camera });
     }
 }

@@ -79,7 +79,7 @@ const fragment = /* glsl */ `
     sphere.setParent(scene);
     // scene.addChild(sphere); // also works
 
-    const shapes = [sphere];
+    const shapes: Shape[] = [sphere];
 
     // Create random array of shapes
     for (let i = 0; i < 50; i++) {
