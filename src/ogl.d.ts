@@ -8,7 +8,6 @@
 declare module 'ogl' {
     /**
      * Implementation of {@link https://en.wikipedia.org/wiki/Euler_angles | Euler angles}.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Euler.js | Source}
      */
     export class Euler extends Array<number> {
@@ -35,14 +34,12 @@ declare module 'ogl' {
 
     /**
      * Implementation of a quaternion.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Quat.js | Source}
      */
     export class Quat extends Array<number> {}
 
     /**
      * 2D vector.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec2.js | Source}
      */
     export type Vec2Tuple = [x: number, y: number];
@@ -102,7 +99,6 @@ declare module 'ogl' {
 
     /**
      * 3D vector.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec3.js | Source}
      */
     export type Vec3Tuple = [x: number, y: number, z: number];
@@ -146,14 +142,12 @@ declare module 'ogl' {
 
     /**
      * 3x3 matrix.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Mat3.js | Source}
      */
     export class Mat3 extends Array<number> {}
 
     /**
      * 4x4 matrix.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Mat4.js | Source}
      */
     export class Mat4 extends Array<number> {
@@ -247,7 +241,6 @@ declare module 'ogl' {
 
     /**
      * Represents a color.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Color.js | Source}
      */
     export class Color extends Array<number> {
@@ -269,7 +262,6 @@ declare module 'ogl' {
 
     /**
      * A class for creating curves.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Curve.js | Source}
      */
     export interface CurveOptions {
@@ -294,7 +286,6 @@ declare module 'ogl' {
 
     /**
      * Path builder.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Path/Path.js | Source}
      */
     export class Path {
@@ -340,7 +331,6 @@ declare module 'ogl' {
     /**
      * The base class for most objects and provides a set of properties and methods for manipulating
      * objects in 3D space.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Transform.js | Source}
      */
     export class Transform {
@@ -433,7 +423,6 @@ declare module 'ogl' {
 
     /**
      * A perspective or orthographic camera.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Camera.js | Source}
      */
     export interface CameraOptions {
@@ -489,7 +478,6 @@ declare module 'ogl' {
 
     /**
      * A mesh, line, or point geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
      */
     export type AttributeData = Float32Array | Uint32Array | Uint16Array;
@@ -575,14 +563,12 @@ declare module 'ogl' {
 
     /**
      * A triangle geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Triangle.js | Source}
      */
     export class Triangle extends Geometry {}
 
     /**
      * A plane geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Plane.js | Source}
      */
     export interface PlaneOptions {
@@ -618,7 +604,6 @@ declare module 'ogl' {
 
     /**
      * A box geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Box.js | Source}
      */
     export interface BoxOptions {
@@ -637,7 +622,6 @@ declare module 'ogl' {
 
     /**
      * A sphere geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Sphere.js | Source}
      */
     export interface SphereOptions {
@@ -657,7 +641,6 @@ declare module 'ogl' {
 
     /**
      * A cylinder geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Cylinder.js | Source}
      */
     export interface CylinderOptions {
@@ -678,7 +661,6 @@ declare module 'ogl' {
 
     /**
      * A torus geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Torus.js | Source}
      */
     export interface TorusOptions {
@@ -696,7 +678,6 @@ declare module 'ogl' {
 
     /**
      * A tube geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Tube.js | Source}
      */
     export interface TubeOptions {
@@ -727,7 +708,6 @@ declare module 'ogl' {
 
     /**
      * A text geometry.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Text.js | Source}
      */
     export type TextAlign = 'left' | 'right' | 'center';
@@ -764,7 +744,6 @@ declare module 'ogl' {
 
     /**
      * A WebGL program.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Program.js | Source}
      */
     export interface ProgramOptions {
@@ -823,7 +802,6 @@ declare module 'ogl' {
 
     /**
      * A normal program.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/NormalProgram.js | Source}
      */
     export class NormalProgram extends Program {
@@ -832,7 +810,6 @@ declare module 'ogl' {
 
     /**
      * Represents a {@link https://en.wikipedia.org/wiki/Polygon_mesh | polygon mesh}.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Mesh.js | Source}
      */
     export interface MeshOptions<TGeometry extends Geometry = Geometry, TProgram extends Program = Program> {
@@ -874,7 +851,6 @@ declare module 'ogl' {
 
     /**
      * A special version of {@link Mesh | Mesh} with instanced frustum culling.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/InstancedMesh.js | Source}
      */
     export class InstancedMesh extends Mesh {
@@ -887,7 +863,6 @@ declare module 'ogl' {
 
     /**
      * A wireframe mesh.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/WireMesh.js | Source}
      */
     export interface WireMeshOptions extends MeshOptions {
@@ -900,7 +875,6 @@ declare module 'ogl' {
 
     /**
      * Axes helper.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/AxesHelper.js | Source}
      */
     export interface AxesHelperOptions {
@@ -917,7 +891,6 @@ declare module 'ogl' {
 
     /**
      * Vertex normals helper.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/VertexNormalsHelper.js | Source}
      */
     export interface VertexNormalsHelperOptions {
@@ -931,7 +904,6 @@ declare module 'ogl' {
 
     /**
      * Face normals helper.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/FaceNormalsHelper.js | Source}
      */
     export interface FaceNormalsHelperOptions {
@@ -945,7 +917,6 @@ declare module 'ogl' {
 
     /**
      * Grid helper.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/GridHelper.js | Source}
      */
     export interface GridHelperOptions {
@@ -960,7 +931,6 @@ declare module 'ogl' {
 
     /**
      * A polyline mesh.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Polyline.js | Source}
      */
     export interface PolylineOptions {
@@ -1001,7 +971,6 @@ declare module 'ogl' {
 
     /**
      * A surface, reflection, or refraction map.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Texture.js | Source}
      */
     export type CompressedImage = {
@@ -1085,7 +1054,6 @@ declare module 'ogl' {
 
     /**
      * The texture loader.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/TextureLoader.js | Source}
      */
     export class TextureLoader {
@@ -1102,7 +1070,6 @@ declare module 'ogl' {
 
     /**
      * A {@link https://github.com/binomialLLC/basis_universal | Basis Universal GPU Texture} loader.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/BasisManager.js | Source}
      */
     export type BasisImage = (Uint8Array | Uint16Array) & {
@@ -1127,7 +1094,6 @@ declare module 'ogl' {
 
     /**
      * A class for animation.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Animation.js | Source}
      */
     export interface AnimationFrame {
@@ -1159,7 +1125,6 @@ declare module 'ogl' {
 
     /**
      * A mesh with a skeleton and bones for animation.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Skin.js | Source}
      */
     export interface SkinRig {
@@ -1204,7 +1169,6 @@ declare module 'ogl' {
 
     /**
      * A mesh with a skeleton and bones for animation.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFSkin.js | Source}
      */
     export interface GLTFSkinSkeleton {
@@ -1237,7 +1201,6 @@ declare module 'ogl' {
 
     /**
      * A class for animation.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFAnimation.js | Source}
      */
     export interface GLTFAnimationData {
@@ -1266,7 +1229,6 @@ declare module 'ogl' {
 
     /**
      * A {@link https://www.khronos.org/gltf/ | glTF (GL Transmission Format)} loader.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFLoader.js | Source}
      */
     export interface GLTFAnimationReference {
@@ -1440,7 +1402,6 @@ declare module 'ogl' {
 
     /**
      * A render target.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/RenderTarget.js | Source}
      */
     export interface RenderTargetOptions {
@@ -1480,7 +1441,6 @@ declare module 'ogl' {
 
     /**
      * The WebGL renderer.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Renderer.js | Source}
      */
     export interface RendererOptions {
@@ -1610,7 +1570,6 @@ declare module 'ogl' {
 
     /**
      * A class for managing post-processing shader passes.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Post.js | Source}
      */
     export interface PostOptions {
@@ -1686,7 +1645,6 @@ declare module 'ogl' {
 
     /**
      * A class for {@link https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units | GPGPU (General Purpose GPU)} calculations.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GPGPU.js | Source}
      */
     export interface GPGPUPass {
@@ -1733,7 +1691,6 @@ declare module 'ogl' {
 
     /**
      * Mouse flowmap.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Flowmap.js | Source}
      */
     export interface FlowmapOptions {
@@ -1768,7 +1725,6 @@ declare module 'ogl' {
 
     /**
      * Shadow map.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Shadow.js | Source}
      */
     export interface ShadowOptions {
@@ -1809,7 +1765,6 @@ declare module 'ogl' {
 
     /**
      * A class to assist with {@link https://en.wikipedia.org/wiki/Ray_casting | raycasting}.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Raycast.js | Source}
      */
     export class Raycast {
@@ -1841,7 +1796,6 @@ declare module 'ogl' {
     /**
      * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
      * additions and subtractions.
-     *
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
      * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
      */
