@@ -20,7 +20,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "ogl": "^1.0.0"
+    "ogl": "github:pschroen/ogl#feat/types"
   },
   "prettier": {
     "arrowParens": "always",
