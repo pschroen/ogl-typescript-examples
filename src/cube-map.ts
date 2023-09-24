@@ -1,4 +1,5 @@
 import { Renderer, Camera, Transform, Texture, Program, Mesh, Box, Orbit } from 'ogl';
+import type { ZoomStyle } from 'ogl';
 
 const vertex = /* glsl */ `
     attribute vec3 position;
@@ -46,7 +47,7 @@ const fragment = /* glsl */ `
 
     document.querySelector('#dropdown')!.addEventListener('change', (e: Event) => {
         const { value } = e.target as HTMLInputElement;
-        controls.zoomStyle = value;
+        controls.zoomStyle = value as ZoomStyle;
     });
 
     function resize() {
