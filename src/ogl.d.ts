@@ -467,7 +467,7 @@ declare module 'ogl' {
 
         getMaxScaleOnAxis(): number;
 
-        lookAt(eye: Vec3, target: Vec3 | Vec3Tuple, up: Vec3): this;
+        lookAt(eye: Vec3, target: Vec3, up: Vec3): this;
 
         determinant(): number;
 
