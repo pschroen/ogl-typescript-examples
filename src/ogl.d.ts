@@ -516,10 +516,6 @@ declare module 'ogl' {
         copy(v: Color): this;
     }
 
-    /**
-     * A class for creating curves.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Curve.js | Source}
-     */
     export type CurveType = 'catmullrom' | 'cubicbezier' | 'quadraticbezier';
 
     export interface CurveOptions {
@@ -528,6 +524,10 @@ declare module 'ogl' {
         type: CurveType;
     }
 
+    /**
+     * A class for creating curves.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Curve.js | Source}
+     */
     export class Curve {
         static CATMULLROM: 'catmullrom';
         static CUBICBEZIER: 'cubicbezier';
@@ -870,10 +870,6 @@ declare module 'ogl' {
      */
     export class Triangle extends Geometry {}
 
-    /**
-     * A plane geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Plane.js | Source}
-     */
     export interface PlaneOptions {
         width: number;
         height: number;
@@ -882,6 +878,10 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A plane geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Plane.js | Source}
+     */
     export class Plane extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<PlaneOptions>);
 
@@ -905,10 +905,6 @@ declare module 'ogl' {
         ): void;
     }
 
-    /**
-     * A box geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Box.js | Source}
-     */
     export interface BoxOptions {
         width: number;
         height: number;
@@ -919,14 +915,14 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A box geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Box.js | Source}
+     */
     export class Box extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<BoxOptions>);
     }
 
-    /**
-     * A sphere geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Sphere.js | Source}
-     */
     export interface SphereOptions {
         radius: number;
         widthSegments: number;
@@ -938,14 +934,14 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A sphere geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Sphere.js | Source}
+     */
     export class Sphere extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<SphereOptions>);
     }
 
-    /**
-     * A cylinder geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Cylinder.js | Source}
-     */
     export interface CylinderOptions {
         radiusTop: number;
         radiusBottom: number;
@@ -958,14 +954,14 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A cylinder geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Cylinder.js | Source}
+     */
     export class Cylinder extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<CylinderOptions>);
     }
 
-    /**
-     * A torus geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Torus.js | Source}
-     */
     export interface TorusOptions {
         radius: number;
         tube: number;
@@ -975,14 +971,14 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A torus geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Torus.js | Source}
+     */
     export class Torus extends Geometry {
         constructor(gl: OGLRenderingContext, options?: Partial<TorusOptions>);
     }
 
-    /**
-     * A tube geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Tube.js | Source}
-     */
     export interface TubeOptions {
         path: Path;
         radius: number;
@@ -992,6 +988,10 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A tube geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Tube.js | Source}
+     */
     export class Tube extends Geometry {
         path: Path;
         radius: number;
@@ -1009,10 +1009,6 @@ declare module 'ogl' {
         constructor(gl: OGLRenderingContext, options?: Partial<TubeOptions>);
     }
 
-    /**
-     * A text geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Text.js | Source}
-     */
     export type TextAlign = 'left' | 'right' | 'center';
 
     export interface TextOptions {
@@ -1027,6 +1023,10 @@ declare module 'ogl' {
         wordBreak: boolean;
     }
 
+    /**
+     * A text geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Text.js | Source}
+     */
     export class Text {
         buffers: {
             position: Float32Array;
@@ -1123,6 +1123,17 @@ declare module 'ogl' {
 
     export type MeshRenderCallback = (renderInfo: { mesh: Mesh; camera?: Camera }) => any;
 
+    export interface RaycastHit {
+        localPoint: Vec3;
+        distance: number;
+        point: Vec3;
+        faceNormal: Vec3;
+        localFaceNormal: Vec3;
+        uv: Vec2;
+        localNormal: Vec3;
+        normal: Vec3;
+    }
+
     /**
      * Represents a {@link https://en.wikipedia.org/wiki/Polygon_mesh | polygon mesh}.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Mesh.js | Source}
@@ -1168,22 +1179,18 @@ declare module 'ogl' {
         removeFrustumCull(): void;
     }
 
-    /**
-     * A wireframe mesh.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/WireMesh.js | Source}
-     */
     export interface WireMeshOptions extends MeshOptions {
         wireColor: Color;
     }
 
+    /**
+     * A wireframe mesh.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/WireMesh.js | Source}
+     */
     export class WireMesh extends Mesh {
         constructor(gl: OGLRenderingContext, options?: Partial<WireMeshOptions>);
     }
 
-    /**
-     * Axes helper.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/AxesHelper.js | Source}
-     */
     export interface AxesHelperOptions {
         size: number;
         symmetric: boolean;
@@ -1192,54 +1199,54 @@ declare module 'ogl' {
         zColor: Color;
     }
 
+    /**
+     * Axes helper.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/AxesHelper.js | Source}
+     */
     export class AxesHelper extends Mesh {
         constructor(gl: OGLRenderingContext, options?: Partial<AxesHelperOptions>);
+    }
+
+    export interface VertexNormalsHelperOptions {
+        size: number;
+        color: Color;
     }
 
     /**
      * Vertex normals helper.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/VertexNormalsHelper.js | Source}
      */
-    export interface VertexNormalsHelperOptions {
-        size: number;
-        color: Color;
-    }
-
     export class VertexNormalsHelper extends Mesh {
         constructor(object: Mesh, options?: Partial<VertexNormalsHelperOptions>);
+    }
+
+    export interface FaceNormalsHelperOptions {
+        size: number;
+        color: Color;
     }
 
     /**
      * Face normals helper.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/FaceNormalsHelper.js | Source}
      */
-    export interface FaceNormalsHelperOptions {
-        size: number;
-        color: Color;
-    }
-
     export class FaceNormalsHelper extends Mesh {
         constructor(object: Mesh, options?: Partial<FaceNormalsHelperOptions>);
     }
 
-    /**
-     * Grid helper.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/GridHelper.js | Source}
-     */
     export interface GridHelperOptions {
         size: number;
         divisions: number;
         color: Color;
     }
 
+    /**
+     * Grid helper.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/helpers/GridHelper.js | Source}
+     */
     export class GridHelper extends Mesh {
         constructor(gl: OGLRenderingContext, options?: Partial<GridHelperOptions>);
     }
 
-    /**
-     * A polyline mesh.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Polyline.js | Source}
-     */
     export interface PolylineOptions {
         points: Vec3[];
         vertex: string;
@@ -1248,6 +1255,10 @@ declare module 'ogl' {
         attributes: AttributeMap;
     }
 
+    /**
+     * A polyline mesh.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Polyline.js | Source}
+     */
     export class Polyline {
         gl: OGLRenderingContext;
         points: Vec3[];
@@ -1383,10 +1394,6 @@ declare module 'ogl' {
         static clearCache(): void;
     }
 
-    /**
-     * A {@link https://github.com/binomialLLC/basis_universal | Basis Universal GPU Texture} loader.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/BasisManager.js | Source}
-     */
     export type BasisManagerFormat = 'astc' | 'bptc' | 's3tc' | 'etc1' | 'pvrtc' | 'none';
 
     export type BasisImage = (Uint8Array | Uint16Array) & {
@@ -1397,6 +1404,10 @@ declare module 'ogl' {
         isBasis: boolean;
     };
 
+    /**
+     * A {@link https://github.com/binomialLLC/basis_universal | Basis Universal GPU Texture} loader.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/BasisManager.js | Source}
+     */
     export class BasisManager {
         constructor(workerSrc: string | URL, gl?: OGLRenderingContext);
 
@@ -1409,10 +1420,6 @@ declare module 'ogl' {
         parseTexture(buffer: ArrayBuffer): Promise<BasisImage>;
     }
 
-    /**
-     * A class for animation.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Animation.js | Source}
-     */
     export interface AnimationFrame {
         position: Vec3;
         quaternion: Quat;
@@ -1428,6 +1435,10 @@ declare module 'ogl' {
         data: AnimationData;
     }
 
+    /**
+     * A class for animation.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Animation.js | Source}
+     */
     export class Animation {
         objects: BoneTransform[];
         data: AnimationData;
@@ -1440,10 +1451,6 @@ declare module 'ogl' {
         update(totalWeight?: number, isSet?: boolean): void;
     }
 
-    /**
-     * A mesh with a skeleton and bones for animation.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Skin.js | Source}
-     */
     export interface SkinRig {
         bindPose: { position: Vec3; quaternion: Quat; scale: Vec3 };
         bones: { name: string; parent: Transform }[];
@@ -1461,6 +1468,10 @@ declare module 'ogl' {
         bindInverse: Mat4;
     }
 
+    /**
+     * A mesh with a skeleton and bones for animation.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Skin.js | Source}
+     */
     export class Skin extends Mesh {
         root: Transform;
 
@@ -1484,10 +1495,6 @@ declare module 'ogl' {
         override draw(options?: { camera?: Camera }): void;
     }
 
-    /**
-     * A mesh with a skeleton and bones for animation.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFSkin.js | Source}
-     */
     export interface GLTFSkinSkeleton {
         joints: { worldMatrix: Mat4; bindInverse: Mat4 }[];
     }
@@ -1499,6 +1506,10 @@ declare module 'ogl' {
         mode: GLenum;
     }
 
+    /**
+     * A mesh with a skeleton and bones for animation.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFSkin.js | Source}
+     */
     export class GLTFSkin<TProgram extends Program = Program> extends Mesh {
         skeleton: GLTFSkinSkeleton;
         program: TProgram;
@@ -1516,10 +1527,6 @@ declare module 'ogl' {
         override draw(options?: { camera?: Camera }): void;
     }
 
-    /**
-     * A class for animation.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFAnimation.js | Source}
-     */
     export interface GLTFAnimationData {
         node: any;
         transform: any;
@@ -1528,6 +1535,10 @@ declare module 'ogl' {
         values: any;
     }
 
+    /**
+     * A class for animation.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFAnimation.js | Source}
+     */
     export class GLTFAnimation {
         data: GLTFAnimationData[];
         elapsed: number;
@@ -1544,10 +1555,6 @@ declare module 'ogl' {
         cubicSplineInterpolate(t: number, prevVal: any, prevTan: any, nextTan: any, nextVal: any): any;
     }
 
-    /**
-     * A {@link https://www.khronos.org/gltf/ | glTF (GL Transmission Format)} loader.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFLoader.js | Source}
-     */
     export interface GLTFAnimationReference {
         name: string;
         animation: GLTFAnimation;
@@ -1638,6 +1645,10 @@ declare module 'ogl' {
         scene: Transform[];
     }
 
+    /**
+     * The {@link https://www.khronos.org/gltf/ | glTF (GL Transmission Format)} loader.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFLoader.js | Source}
+     */
     export class GLTFLoader {
         static setBasisManager(manager: BasisManager): void;
 
@@ -1914,10 +1925,6 @@ declare module 'ogl' {
         ): void;
     }
 
-    /**
-     * A class for managing post-processing shader passes.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Post.js | Source}
-     */
     export interface PostOptions {
         width: number;
         height: number;
@@ -1940,6 +1947,10 @@ declare module 'ogl' {
         fragment: string;
     }
 
+    /**
+     * A class for managing post-processing shader passes.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Post.js | Source}
+     */
     export class Post {
         gl: OGLRenderingContext;
 
@@ -1989,10 +2000,12 @@ declare module 'ogl' {
         ): void;
     }
 
-    /**
-     * A class for {@link https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units | GPGPU (General Purpose GPU)} calculations.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GPGPU.js | Source}
-     */
+    export interface GPGPUOptions {
+        data: Float32Array;
+        geometry: Triangle;
+        type: Texture['type'];
+    }
+
     export interface GPGPUPass {
         mesh: Mesh;
         program: Program;
@@ -2003,12 +2016,10 @@ declare module 'ogl' {
         fragment: string;
     }
 
-    export interface GPGPUOptions {
-        data: Float32Array;
-        geometry: Triangle;
-        type: Texture['type'];
-    }
-
+    /**
+     * A class for {@link https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units | GPGPU (General Purpose GPU)} calculations.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GPGPU.js | Source}
+     */
     export class GPGPU {
         gl: OGLRenderingContext;
         passes: GPGPUPass[];
@@ -2031,10 +2042,6 @@ declare module 'ogl' {
         render(): void;
     }
 
-    /**
-     * Mouse flowmap.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Flowmap.js | Source}
-     */
     export interface FlowmapOptions {
         size: number;
         falloff: number;
@@ -2043,6 +2050,10 @@ declare module 'ogl' {
         type: number;
     }
 
+    /**
+     * Mouse flowmap.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Flowmap.js | Source}
+     */
     export class Flowmap {
         gl: OGLRenderingContext;
 
@@ -2065,16 +2076,16 @@ declare module 'ogl' {
         update(): void;
     }
 
-    /**
-     * Shadow map.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Shadow.js | Source}
-     */
     export interface ShadowOptions {
         light: Camera;
         width: number;
         height: number;
     }
 
+    /**
+     * Shadow map.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Shadow.js | Source}
+     */
     export class Shadow {
         gl: OGLRenderingContext;
 
@@ -2103,17 +2114,6 @@ declare module 'ogl' {
         setSize(options: { width?: number; height?: number }): void;
 
         render(options: { scene: Transform }): void;
-    }
-
-    export interface RaycastHit {
-        localPoint: Vec3;
-        distance: number;
-        point: Vec3;
-        faceNormal: Vec3;
-        localFaceNormal: Vec3;
-        uv: Vec2;
-        localNormal: Vec3;
-        normal: Vec3;
     }
 
     /**
@@ -2154,12 +2154,6 @@ declare module 'ogl' {
 
     export type ZoomStyle = 'dolly' | 'fov';
 
-    /**
-     * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
-     * additions and subtractions.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
-     * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
-     */
     export interface OrbitOptions {
         element: HTMLElement;
         enabled: boolean;
@@ -2183,6 +2177,12 @@ declare module 'ogl' {
         maxDistance: number;
     }
 
+    /**
+     * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
+     * additions and subtractions.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Orbit.js | Source}
+     * @see {@link https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/OrbitControls.js | `OrbitControls` Source}
+     */
     export class Orbit {
         enabled: boolean;
         target: Vec3;
