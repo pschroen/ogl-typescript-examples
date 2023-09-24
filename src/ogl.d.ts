@@ -6,49 +6,125 @@
 // Definitions: https://github.com/oframe/ogl
 
 declare module 'ogl' {
+    export type EulerTuple = [x: number, y: number, z: number];
+
+    export type EulerOrder = 'XYZ' | 'XZY' | 'YXZ' | 'YZX' | 'ZXY' | 'ZYX';
+
     /**
      * Implementation of {@link https://en.wikipedia.org/wiki/Euler_angles | Euler angles}.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Euler.js | Source}
      */
     export class Euler extends Array<number> {
-        x: number;
-        y: number;
-        z: number;
+        order: EulerOrder;
+        onChange: () => void;
 
-        constructor(x?: number, y?: number, z?: number, order?: string);
+        constructor(x?: number, y?: number, z?: number, order?: EulerOrder);
 
-        set(x: number, y?: number, z?: number): this;
+        get x(): number;
+
+        get y(): number;
+
+        get z(): number;
+
+        set x(v: number);
+
+        set y(v: number);
+
+        set z(v: number);
+
+        set(x: number | Euler | EulerTuple, y?: number, z?: number): this;
 
         copy(v: Euler): this;
 
-        reorder(order: string): this;
+        reorder(order: EulerOrder): this;
 
-        fromRotationMatrix(m: Mat3, order?: string): this;
+        fromRotationMatrix(m: Mat4, order?: EulerOrder): this;
 
-        fromQuaternion(q: Quat, order?: string): this;
+        fromQuaternion(q: Quat, order?: EulerOrder): this;
 
         fromArray(a: number[] | AttributeData, o?: number): this;
 
         toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
     }
 
+    export type QuatTuple = [x: number, y: number, z: number, w: number];
+
     /**
      * Implementation of a quaternion.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Quat.js | Source}
      */
-    export class Quat extends Array<number> {}
+    export class Quat extends Array<number> {
+        onChange: () => void;
+
+        constructor(x?: number, y?: number, z?: number, w?: number);
+
+        get x(): number;
+
+        get y(): number;
+
+        get z(): number;
+
+        get w(): number;
+
+        set x(v: number);
+
+        set y(v: number);
+
+        set z(v: number);
+
+        set w(v: number);
+
+        identity(): this;
+
+        set(x: number | Quat | QuatTuple, y: number, z: number, w: number): this;
+
+        rotateX(a: number): this;
+
+        rotateY(a: number): this;
+
+        rotateZ(a: number): this;
+
+        inverse(q?: Quat): this;
+
+        conjugate(q?: Quat): this;
+
+        copy(q: Quat): this;
+
+        normalize(q?: Quat): this;
+
+        multiply(qA: Quat, qB?: Quat): this;
+
+        dot(v: Quat): number;
+
+        fromMatrix3(matrix3: Mat3): this;
+
+        fromEuler(euler: Euler): this;
+
+        fromAxisAngle(axis: Vec3, a: number): this;
+
+        slerp(q: Quat, t: number): this;
+
+        fromArray(a: number[] | AttributeData, o?: number): this;
+
+        toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
+    }
+
+    export type Vec2Tuple = [x: number, y: number];
 
     /**
      * 2D vector.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec2.js | Source}
      */
-    export type Vec2Tuple = [x: number, y: number];
-
     export class Vec2 extends Array<number> {
-        x: number;
-        y: number;
-
         constructor(x?: number, y?: number);
+
+        get x(): number;
+
+        get y(): number;
+
+        set x(v: number);
+
+        set y(v: number);
 
         set(x: number | Vec2 | Vec2Tuple, y?: number): this;
 
@@ -58,25 +134,25 @@ declare module 'ogl' {
 
         sub(va: Vec2, vb?: Vec2): this;
 
-        multiply(v: Vec2): this;
+        multiply(v: Vec2 | number): this;
 
-        divide(v: Vec2): this;
+        divide(v: Vec2 | number): this;
 
-        inverse(v: Vec2): this;
+        inverse(v?: Vec2): this;
 
         len(): number;
 
-        distance(v: Vec2): number;
+        distance(v?: Vec2): number;
 
         squaredLen(): number;
 
-        squaredDistance(v: Vec2): number;
+        squaredDistance(v?: Vec2): number;
 
-        negate(v: Vec2): this;
+        negate(v?: Vec2): this;
 
-        cross(va: Vec2, vb: Vec2): number;
+        cross(va: Vec2, vb?: Vec2): number;
 
-        scale(v: Vec2): this;
+        scale(v: number): this;
 
         normalize(): this;
 
@@ -97,65 +173,210 @@ declare module 'ogl' {
         toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
     }
 
+    export type Vec3Tuple = [x: number, y: number, z: number];
+
     /**
      * 3D vector.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec3.js | Source}
      */
-    export type Vec3Tuple = [x: number, y: number, z: number];
-
     export class Vec3 extends Array<number> {
         constructor(x?: number, y?: number, z?: number);
+
         get x(): number;
+
         get y(): number;
+
         get z(): number;
+
         set x(v: number);
+
         set y(v: number);
+
         set z(v: number);
+
         set(x: number | Vec3 | Vec3Tuple, y?: number, z?: number): this;
+
         copy(v: Vec3): this;
+
         add(va: Vec3, vb?: Vec3): this;
+
         sub(va: Vec3, vb?: Vec3): this;
+
         multiply(v: Vec3 | number): this;
+
         divide(v: Vec3 | number): this;
+
         inverse(v?: Vec3): this;
+
         len(): number;
+
         distance(v?: Vec3): number;
+
         squaredLen(): number;
+
         squaredDistance(v?: Vec3): number;
+
         negate(v?: Vec3): this;
+
         cross(va: Vec3, vb?: Vec3): this;
+
         scale(v: number): this;
+
         normalize(): this;
+
         dot(v: Vec3): number;
+
         equals(v: Vec3): boolean;
+
         applyMatrix3(mat3: Mat3): this;
+
         applyMatrix4(mat4: Mat4): this;
+
         scaleRotateMatrix4(mat4: Mat4): this;
+
         applyQuaternion(q: Quat): this;
+
         angle(v: Vec3): number;
+
         lerp(v: Vec3, t: number): this;
+
         clone(): Vec3;
+
         fromArray(a: number[] | AttributeData, o?: number): this;
+
         toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
+
         transformDirection(mat4: Mat4): this;
     }
+
+    export type Vec4Tuple = [x: number, y: number, z: number, w: number];
+
+    /**
+     * 4D vector.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Vec4.js | Source}
+     */
+    export class Vec4 extends Array<number> {
+        constructor(x?: number, y?: number, z?: number, w?: number);
+
+        get x(): number;
+
+        get y(): number;
+
+        get z(): number;
+
+        get w(): number;
+
+        set x(v: number);
+
+        set y(v: number);
+
+        set z(v: number);
+
+        set w(v: number);
+
+        set(x: number | Vec4 | Vec4Tuple, y?: number, z?: number, w?: number): this;
+
+        copy(v: Vec4): this;
+
+        normalize(): this;
+
+        multiply(v: number): this;
+
+        dot(v: Vec4): number;
+
+        fromArray(a: number[] | AttributeData, o?: number): this;
+
+        toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
+    }
+
+    export type Mat3Tuple = [
+        m00: number,
+        m01: number,
+        m02: number,
+        m10: number,
+        m11: number,
+        m12: number,
+        m20: number,
+        m21: number,
+        m22: number,
+    ];
 
     /**
      * 3x3 matrix.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Mat3.js | Source}
      */
-    export class Mat3 extends Array<number> {}
+    export class Mat3 extends Array<number> {
+        constructor(
+            m00?: number,
+            m01?: number,
+            m02?: number,
+            m10?: number,
+            m11?: number,
+            m12?: number,
+            m20?: number,
+            m21?: number,
+            m22?: number,
+        );
+
+        set(
+            m00: number | Mat3 | Mat3Tuple,
+            m01: number,
+            m02: number,
+            m10: number,
+            m11: number,
+            m12: number,
+            m20: number,
+            m21: number,
+            m22: number,
+        ): this;
+
+        translate(v: Vec2, m?: Mat3): this;
+
+        rotate(v: number, m?: Mat3): this;
+
+        scale(v: Vec2, m?: Mat3): this;
+
+        multiply(ma: Mat3, mb?: Mat3): this;
+
+        identity(): this;
+
+        copy(m: Mat3): this;
+
+        fromMatrix4(m: Mat4): this;
+
+        fromQuaternion(q: Quat): this;
+
+        fromBasis(vec3a: Vec3, vec3b: Vec3, vec3c: Vec3): this;
+
+        inverse(m?: Mat3): this;
+
+        getNormalMatrix(m: Mat4): this;
+    }
+
+    export type Mat4Tuple = [
+        m00: number,
+        m01: number,
+        m02: number,
+        m03: number,
+        m10: number,
+        m11: number,
+        m12: number,
+        m13: number,
+        m20: number,
+        m21: number,
+        m22: number,
+        m23: number,
+        m30: number,
+        m31: number,
+        m32: number,
+        m33: number,
+    ];
 
     /**
      * 4x4 matrix.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Mat4.js | Source}
      */
     export class Mat4 extends Array<number> {
-        x: number;
-        y: number;
-        z: number;
-        w: number;
-
         constructor(
             m00?: number,
             m01?: number,
@@ -172,11 +393,27 @@ declare module 'ogl' {
             m30?: number,
             m31?: number,
             m32?: number,
-            m33?: number
+            m33?: number,
         );
 
+        get x(): number;
+
+        get y(): number;
+
+        get z(): number;
+
+        get w(): number;
+
+        set x(v: number);
+
+        set y(v: number);
+
+        set z(v: number);
+
+        set w(v: number);
+
         set(
-            m00: number,
+            m00: number | Mat4 | Mat4Tuple,
             m01: number,
             m02: number,
             m03: number,
@@ -191,34 +428,41 @@ declare module 'ogl' {
             m30: number,
             m31: number,
             m32: number,
-            m33: number
+            m33: number,
         ): this;
 
-        translate(v: Mat4, m: Mat4): this;
+        translate(v: Vec3, m?: Mat4): this;
 
-        rotate(v: Mat4, axis: Vec3, m: Mat4): this;
+        rotate(v: number, axis: Vec3, m?: Mat4): this;
 
-        scale(v: Mat4, m: Mat4): this;
+        scale(v: Vec3 | number, m?: Mat4): this;
 
         add(ma: Mat4, mb?: Mat4): this;
 
         sub(ma: Mat4, mb?: Mat4): this;
 
-        multiply(ma: Mat4, mb: Mat4): this;
+        multiply(ma: Mat4 | number, mb?: Mat4): this;
 
         identity(): this;
 
         copy(m: Mat4): this;
 
-        fromPerspective(options?: object): this;
+        fromPerspective(options: {fov: number; aspect: number; near: number; far: number}): this;
 
-        fromOrthogonal(options: object): this;
+        fromOrthogonal(options: {
+            left: number;
+            right: number;
+            bottom: number;
+            top: number;
+            near: number;
+            far: number;
+        }): this;
 
         fromQuaternion(q: Quat): this;
 
         setPosition(v: Vec3): this;
 
-        inverse(m: Mat4): this;
+        inverse(m?: Mat4): this;
 
         compose(q: Quat, pos: Vec3, scale: Vec3): this;
 
@@ -228,9 +472,9 @@ declare module 'ogl' {
 
         getScaling(scale: Vec3): this;
 
-        getMaxScaleOnAxis(): Vec3;
+        getMaxScaleOnAxis(): number;
 
-        lookAt(eye: Vec3, target: Vec3 | [number, number, number], up: Vec3): this;
+        lookAt(eye: Vec3, target: Vec3 | Vec3Tuple, up: Vec3): this;
 
         determinant(): number;
 
@@ -239,23 +483,42 @@ declare module 'ogl' {
         toArray<T extends number[] | AttributeData>(a?: T, o?: number): T;
     }
 
+    export type ColorTuple = [r: number, g: number, b: number];
+
+    export type ColorRepresentation =
+        | number
+        | 'black'
+        | 'white'
+        | 'red'
+        | 'green'
+        | 'blue'
+        | 'fuchsia'
+        | 'cyan'
+        | 'yellow'
+        | 'orange'
+        | string
+        | ColorTuple;
+
     /**
      * Represents a color.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/math/Color.js | Source}
      */
     export class Color extends Array<number> {
-        r: number;
-        g: number;
-        b: number;
+        constructor(color?: number | Color | ColorRepresentation, g?: number, b?: number);
 
-        constructor();
-        constructor(color: [number, number, number]);
-        constructor(color: number, g: number, b: number);
-        constructor(color: string);
-        constructor(color: number);
-        constructor(color?: any);
+        get r(): number;
 
-        set(color: any): this;
+        get g(): number;
+
+        get b(): number;
+
+        set r(v: number);
+
+        set g(v: number);
+
+        set b(v: number);
+
+        set(color?: number | Color | ColorRepresentation, g?: number, b?: number): this;
 
         copy(v: Color): this;
     }
@@ -264,10 +527,12 @@ declare module 'ogl' {
      * A class for creating curves.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Curve.js | Source}
      */
+    export type CurveType = 'catmullrom' | 'cubicbezier' | 'quadraticbezier';
+
     export interface CurveOptions {
         points: Vec3[];
         divisions: number;
-        type: 'catmullrom' | 'cubicbezier' | 'quadraticbezier';
+        type: CurveType;
     }
 
     export class Curve {
@@ -277,7 +542,7 @@ declare module 'ogl' {
 
         points: Vec3[];
         divisions: number;
-        type: 'catmullrom' | 'cubicbezier' | 'quadraticbezier';
+        type: CurveType;
 
         constructor(options?: Partial<CurveOptions>);
 
@@ -325,7 +590,10 @@ declare module 'ogl' {
 
         getPoints(divisions?: number): Vec3[];
 
-        computeFrenetFrames(divisions?: number, closed?: boolean): { tangents: Vec3[]; normals: Vec3[]; binormals: Vec3[] };
+        computeFrenetFrames(
+            divisions?: number,
+            closed?: boolean,
+        ): {tangents: Vec3[]; normals: Vec3[]; binormals: Vec3[]};
     }
 
     /**
@@ -350,19 +618,34 @@ declare module 'ogl' {
          */
         visible: boolean;
 
+        /**
+         * The local transform matrix.
+         */
         matrix: Mat4;
+
+        /**
+         * The world transform matrix.
+         */
         worldMatrix: Mat4;
+
+        /**
+         * When set, it updates the local transform matrix every frame and also updates the worldMatrix
+         * property.
+         * @defaultValue `true`
+         */
         matrixAutoUpdate: boolean;
+
+        /**
+         * When set, it updates the world transform matrix in that frame and resets this property to
+         * false.
+         * @defaultValue `false`
+         */
+        worldMatrixNeedsUpdate: boolean;
 
         /**
          * The local position.
          */
         position: Vec3;
-
-        /**
-         * The local rotation as {@link Euler | Euler angles}.
-         */
-        rotation: Euler;
 
         /**
          * The local rotation as a {@link Quat | Quaternion}.
@@ -376,11 +659,19 @@ declare module 'ogl' {
         scale: Vec3;
 
         /**
+         * The local rotation as {@link Euler | Euler angles}.
+         */
+        rotation: Euler;
+
+        /**
          * Up vector used by the {@link lookAt | lookAt} method.
          * @defaultValue `new Vec3(0, 1, 0)`
          */
         up: Vec3;
 
+        /**
+         * Creates a new transform object.
+         */
         constructor();
 
         /**
@@ -391,40 +682,48 @@ declare module 'ogl' {
         setParent(parent: Transform | null, notifyParent?: boolean): void;
 
         /**
-         * Add a child.
+         * Adds a child.
          * @param {Transform} child The child.
-         * @param {boolean} [notifyChild=true] Sets the parent of the child to
+         * @param {boolean} [notifyChild=true] Sets the parent of the child to this.
          */
         addChild(child: Transform, notifyChild?: boolean): void;
 
         /**
-         * Remove a child.
+         * Removes a child.
          * @param {Transform} child The child.
          * @param {boolean} [notifyChild=true] Sets the parent of the child to null.
          */
         removeChild(child: Transform, notifyChild?: boolean): void;
 
         /**
-         * Update world transform.
+         * Updates the world transform matrix.
          */
         updateMatrixWorld(force?: boolean): void;
 
         /**
-         * Update local transform.
+         * Updates the local transform matrix.
          */
         updateMatrix(): void;
 
+        /**
+         * Executes the callback on this transform object and all descendants.
+         * @param {Function} callback The callback.
+         */
         traverse(callback: (node: Transform) => boolean | void): void;
 
+        /**
+         * Decomposes this transform object into it's position, quaternion and scale components.
+         */
         decompose(): void;
 
-        lookAt(target: Vec3 | [number, number, number], invert?: boolean): void;
+        /**
+         * Rotates this transform object to face a target vector.
+         * @param {Vec3 | Vec3Tuple} target A target vector to look at.
+         * @param {boolean} [invert=false] Invert the local position and target vector.
+         */
+        lookAt(target: Vec3 | Vec3Tuple, invert?: boolean): void;
     }
 
-    /**
-     * A perspective or orthographic camera.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Camera.js | Source}
-     */
     export interface CameraOptions {
         near: number;
         far: number;
@@ -437,7 +736,26 @@ declare module 'ogl' {
         zoom: number;
     }
 
+    export interface PerspectiveOptions
+        extends Pick<CameraOptions, 'near' | 'far' | 'fov' | 'aspect'> {}
+
+    export interface OrthographicOptions
+        extends Pick<CameraOptions, 'near' | 'far' | 'left' | 'right' | 'bottom' | 'top' | 'zoom'> {}
+
+    export type CameraType = 'perspective' | 'orthographic';
+
+    /**
+     * A perspective or orthographic camera.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Camera.js | Source}
+     */
     export class Camera extends Transform {
+        projectionMatrix: Mat4;
+        viewMatrix: Mat4;
+        projectionViewMatrix: Mat4;
+        worldPosition: Vec3;
+
+        type: CameraType;
+
         near: number;
         far: number;
         fov: number;
@@ -448,26 +766,23 @@ declare module 'ogl' {
         top: number;
         zoom: number;
 
-        projectionMatrix: Mat4;
-        viewMatrix: Mat4;
-        projectionViewMatrix: Mat4;
-        worldPosition: Vec3;
-
-        type: 'perspective' | 'orthographic';
+        frustum: (Vec3 & {
+            constant: number;
+        })[];
 
         constructor(gl: OGLRenderingContext, options?: Partial<CameraOptions>);
 
-        perspective(options?: Partial<CameraOptions>): this;
+        perspective(options?: Partial<PerspectiveOptions>): this;
 
-        orthographic(options?: Partial<CameraOptions>): this;
+        orthographic(options?: Partial<OrthographicOptions>): this;
 
         updateMatrixWorld(): this;
 
-        lookAt(target: Vec3 | [number, number, number]): this;
+        lookAt(target: Vec3 | Vec3Tuple): this;
 
         project(v: Vec3): this;
 
-        unproject(v: Vec2): this;
+        unproject(v: Vec3): this;
 
         updateFrustum(): void;
 
@@ -476,10 +791,8 @@ declare module 'ogl' {
         frustumIntersectsSphere(center: Vec3, radius: number): boolean;
     }
 
-    /**
-     * A mesh, line, or point geometry.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
-     */
+    export type AttributeMap = Record<string, Partial<Attribute>>;
+
     export type AttributeData = Float32Array | Uint32Array | Uint16Array;
 
     export interface Attribute {
@@ -493,25 +806,27 @@ declare module 'ogl' {
         stride: number;
         offset: number;
         count: number;
-        min: any;
-        max: any;
-
         target: number;
         id: number;
         divisor: number;
         needsUpdate: boolean;
+        usage: number;
     }
 
-    export type AttributeMap = Record<string, Partial<Attribute>>;
-
-    export type Bounds = {
+    export interface Bounds {
         min: Vec3;
         max: Vec3;
         center: Vec3;
         scale: Vec3;
         radius: number;
-    };
+    }
 
+    export type GeometryRaycast = 'sphere' | 'box';
+
+    /**
+     * A mesh, line, or point geometry.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Geometry.js | Source}
+     */
     export class Geometry {
         gl: OGLRenderingContext;
         attributes: AttributeMap;
@@ -532,11 +847,11 @@ declare module 'ogl' {
         isInstanced: boolean;
         bounds: Bounds;
 
-        raycast?: 'sphere' | 'box';
+        raycast?: GeometryRaycast; // User defined
 
         constructor(gl: OGLRenderingContext, attributes?: AttributeMap);
 
-        addAttribute(key: string, attr: Partial<Attribute>): void;
+        addAttribute(key: string, attr: Partial<Attribute>): number | undefined;
 
         updateAttribute(attr: Partial<Attribute>): void;
 
@@ -550,11 +865,11 @@ declare module 'ogl' {
 
         bindAttributes(program: Program): void;
 
-        draw(options: { program: Program; mode?: number }): void;
+        draw(options: {program: Program; mode?: number}): void;
 
-        getPosition(): Attribute | boolean | void;
+        getPosition(): Partial<Attribute>;
 
-        computeBoundingBox(attr?: Partial<Attribute>): void;
+        computeBoundingBox(attr: Partial<Attribute>): void;
 
         computeBoundingSphere(attr?: Partial<Attribute>): void;
 
@@ -598,7 +913,7 @@ declare module 'ogl' {
             uDir: number,
             vDir: number,
             i: number,
-            ii: number
+            ii: number,
         ): void;
     }
 
@@ -712,7 +1027,7 @@ declare module 'ogl' {
      */
     export type TextAlign = 'left' | 'right' | 'center';
 
-    export type TextOptions = {
+    export interface TextOptions {
         font: object;
         text: string;
         width: number;
@@ -722,7 +1037,7 @@ declare module 'ogl' {
         lineHeight: number;
         wordSpacing: number;
         wordBreak: boolean;
-    };
+    }
 
     export class Text {
         buffers: {
@@ -735,17 +1050,13 @@ declare module 'ogl' {
         height: number;
         width: number;
 
-        constructor(parameters?: Partial<TextOptions>);
+        constructor(options?: Partial<TextOptions>);
 
-        resize(options: { width: number }): void;
+        resize(options: {width: number}): void;
 
-        update(options: { text: string }): void;
+        update(options: {text: string}): void;
     }
 
-    /**
-     * A WebGL program.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Program.js | Source}
-     */
     export interface ProgramOptions {
         vertex: string;
         fragment: string;
@@ -758,18 +1069,19 @@ declare module 'ogl' {
         depthFunc: GLenum;
     }
 
-    export interface BlendFunc {
-        src: GLenum;
-        dst: GLenum;
-        srcAlpha: GLenum;
-        dstAlpha: GLenum;
+    export interface UniformInfo extends WebGLActiveInfo {
+        uniformName: string;
+        nameComponents: string[];
+        isStruct: boolean;
+        isStructArray: boolean;
+        structIndex: number;
+        structProperty: string;
     }
 
-    export interface BlendEquation {
-        modeRGB: GLenum;
-        modeAlpha: GLenum;
-    }
-
+    /**
+     * A WebGL program.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Program.js | Source}
+     */
     export class Program {
         gl: OGLRenderingContext;
         uniforms: Record<string, any>;
@@ -783,19 +1095,21 @@ declare module 'ogl' {
         depthFunc: GLenum;
         blendFunc: BlendFunc;
         blendEquation: BlendEquation;
-        uniformLocations: Map<number, WebGLUniformLocation>;
-        attributeLocations: Map<any, any>;
+
+        program: WebGLProgram;
+        uniformLocations: Map<UniformInfo, WebGLUniformLocation>;
+        attributeLocations: Map<WebGLActiveInfo, GLint>;
         attributeOrder: string;
 
         constructor(gl: OGLRenderingContext, options?: Partial<ProgramOptions>);
 
-        setBlendFunc(src: GLenum, dst: GLenum, srcAlpha: GLenum, dstAlpha: GLenum): void;
+        setBlendFunc(src: GLenum, dst: GLenum, srcAlpha?: GLenum, dstAlpha?: GLenum): void;
 
         setBlendEquation(modeRGB: GLenum, modeAlpha: GLenum): void;
 
         applyState(): void;
 
-        use(options?: object): void;
+        use(options?: {flipFaces?: boolean}): void;
 
         remove(): void;
     }
@@ -808,45 +1122,50 @@ declare module 'ogl' {
         constructor(gl: OGLRenderingContext, options?: Partial<ProgramOptions>);
     }
 
+    export interface MeshOptions<
+        TGeometry extends Geometry = Geometry,
+        TProgram extends Program = Program,
+    > {
+        geometry: TGeometry;
+        program: TProgram;
+        mode: GLenum;
+        frustumCulled: boolean;
+        renderOrder: number;
+    }
+
+    export type MeshRenderCallback = (renderInfo: {mesh: Mesh; camera?: Camera}) => any;
+
     /**
      * Represents a {@link https://en.wikipedia.org/wiki/Polygon_mesh | polygon mesh}.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Mesh.js | Source}
      */
-    export interface MeshOptions<TGeometry extends Geometry = Geometry, TProgram extends Program = Program> {
-        geometry: TGeometry;
-        program: TProgram;
-        mode: GLenum;
-        frustumCulled: boolean;
-        renderOrder: number;
-    }
-
-    export interface MeshDrawOptions {
-        camera: Camera;
-    }
-
-    export class Mesh<TGeometry extends Geometry = Geometry, TProgram extends Program = Program> extends Transform {
+    export class Mesh<
+        TGeometry extends Geometry = Geometry,
+        TProgram extends Program = Program,
+    > extends Transform {
         gl: OGLRenderingContext;
         id: number;
-
         geometry: TGeometry;
         program: TProgram;
         mode: GLenum;
-        frustumCulled: boolean;
-        renderOrder: number;
 
+        frustumCulled: boolean;
+
+        renderOrder: number;
         modelViewMatrix: Mat4;
         normalMatrix: Mat3;
+        beforeRenderCallbacks: MeshRenderCallback[];
+        afterRenderCallbacks: MeshRenderCallback[];
 
-        beforeRenderCallbacks: Function[];
-        afterRenderCallbacks: Function[];
+        hit?: Partial<RaycastHit>; // Set from raycaster
 
         constructor(gl: OGLRenderingContext, options?: Partial<MeshOptions>);
 
-        onBeforeRender(f: Function): this;
+        onBeforeRender(f: MeshRenderCallback): this;
 
-        onAfterRender(f: Function): this;
+        onAfterRender(f: MeshRenderCallback): this;
 
-        draw(options?: Partial<MeshDrawOptions>): void;
+        draw(options?: {camera?: Camera}): void;
     }
 
     /**
@@ -952,11 +1271,11 @@ declare module 'ogl' {
 
         geometry: Geometry;
 
-        resolution: { value: Vec2 };
-        dpr: { value: number };
-        thickness: { value: number };
-        color: { value: Color };
-        miter: { value: number };
+        resolution: {value: Vec2};
+        dpr: {value: number};
+        thickness: {value: number};
+        color: {value: Color};
+        miter: {value: number};
 
         program: Program;
 
@@ -969,10 +1288,6 @@ declare module 'ogl' {
         resize(): void;
     }
 
-    /**
-     * A surface, reflection, or refraction map.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Texture.js | Source}
-     */
     export type CompressedImage = {
         isCompressedTexture?: boolean;
     } & {
@@ -981,7 +1296,12 @@ declare module 'ogl' {
         height: number;
     }[];
 
-    export type ImageRepresentation = HTMLImageElement | HTMLVideoElement | HTMLImageElement[] | ArrayBufferView | CompressedImage;
+    export type ImageRepresentation =
+        | HTMLImageElement
+        | HTMLVideoElement
+        | HTMLImageElement[]
+        | ArrayBufferView
+        | CompressedImage;
 
     export interface TextureOptions {
         image: ImageRepresentation;
@@ -1003,21 +1323,24 @@ declare module 'ogl' {
         height: number;
     }
 
+    /**
+     * A surface, reflection, or refraction map.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Texture.js | Source}
+     */
     export class Texture {
-        ext: string;
         gl: OGLRenderingContext;
         id: number;
 
-        image: ImageRepresentation;
+        image?: ImageRepresentation;
         target: number;
         type: number;
         format: number;
         internalFormat: number;
+        minFilter: number;
+        magFilter: number;
         wrapS: number;
         wrapT: number;
         generateMipmaps: boolean;
-        minFilter: number;
-        magFilter: number;
         premultiplyAlpha: boolean;
         unpackAlignment: number;
         flipY: boolean;
@@ -1025,11 +1348,12 @@ declare module 'ogl' {
         level: number;
         width: number;
         height: number;
-
         texture: WebGLTexture;
+
         store: {
-            image: any;
+            image?: ImageRepresentation | null;
         };
+
         glState: RenderState;
 
         state: {
@@ -1040,10 +1364,13 @@ declare module 'ogl' {
             anisotropy: number;
         };
 
-        needsUpdate: Boolean;
+        needsUpdate: boolean;
         onUpdate?: () => void;
 
-        loaded?: Promise<Texture>; // Set from texture loader
+        // Set from texture loader
+        ext?: string;
+        name?: string;
+        loaded?: Promise<Texture>;
 
         constructor(gl: OGLRenderingContext, options?: Partial<TextureOptions>);
 
@@ -1063,7 +1390,12 @@ declare module 'ogl' {
 
         static loadKTX(src: string, texture: Texture): Promise<void>;
 
-        static loadImage(gl: OGLRenderingContext, src: string, texture: Texture, flipY: boolean): Promise<HTMLImageElement | ImageBitmap>;
+        static loadImage(
+            gl: OGLRenderingContext,
+            src: string,
+            texture: Texture,
+            flipY: boolean,
+        ): Promise<HTMLImageElement | ImageBitmap>;
 
         static clearCache(): void;
     }
@@ -1072,6 +1404,8 @@ declare module 'ogl' {
      * A {@link https://github.com/binomialLLC/basis_universal | Basis Universal GPU Texture} loader.
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/BasisManager.js | Source}
      */
+    export type BasisManagerFormat = 'astc' | 'bptc' | 's3tc' | 'etc1' | 'pvrtc' | 'none';
+
     export type BasisImage = (Uint8Array | Uint16Array) & {
         width: number;
         height: number;
@@ -1083,11 +1417,11 @@ declare module 'ogl' {
     export class BasisManager {
         constructor(workerSrc: string | URL, gl?: OGLRenderingContext);
 
-        getSupportedFormat(gl?: OGLRenderingContext): 'astc' | 'bptc' | 's3tc' | 'etc1' | 'pvrtc' | 'none';
+        getSupportedFormat(gl?: OGLRenderingContext): BasisManagerFormat;
 
         initWorker(workerSrc: string | URL): void;
 
-        onMessage(event: { data: { id: number; error: string; image: BasisImage } }): void;
+        onMessage(event: {data: {id: number; error: string; image: BasisImage}}): void;
 
         parseTexture(buffer: ArrayBuffer): Promise<BasisImage>;
     }
@@ -1128,8 +1462,8 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/Skin.js | Source}
      */
     export interface SkinRig {
-        bindPose: { position: Vec3; quaternion: Quat; scale: Vec3 };
-        bones: { name: string; parent: Transform }[];
+        bindPose: {position: Vec3; quaternion: Quat; scale: Vec3};
+        bones: {name: string; parent: Transform}[];
     }
 
     export interface SkinOptions {
@@ -1164,7 +1498,7 @@ declare module 'ogl' {
 
         update(): void;
 
-        override draw(options?: Partial<MeshDrawOptions>): void;
+        override draw(options?: {camera?: Camera}): void;
     }
 
     /**
@@ -1172,7 +1506,7 @@ declare module 'ogl' {
      * @see {@link https://github.com/oframe/ogl/blob/master/src/extras/GLTFSkin.js | Source}
      */
     export interface GLTFSkinSkeleton {
-        joints: { worldMatrix: Mat4; bindInverse: Mat4 }[];
+        joints: {worldMatrix: Mat4; bindInverse: Mat4}[];
     }
 
     export interface GLTFSkinOptions {
@@ -1196,7 +1530,7 @@ declare module 'ogl' {
 
         updateUniforms(): void;
 
-        override draw(options?: Partial<MeshDrawOptions>): void;
+        override draw(options?: {camera?: Camera}): void;
     }
 
     /**
@@ -1238,11 +1572,11 @@ declare module 'ogl' {
 
     export interface GLTFLightOptions {
         name: string;
-        color: { value: Color };
-        direction: { value: Vec3 };
-        position: { value: Vec3 };
-        distance: { value: number };
-        decay: { value: number };
+        color: {value: Color};
+        direction: {value: Vec3};
+        position: {value: Vec3};
+        distance: {value: number};
+        decay: {value: number};
     }
 
     export interface GLTFLights {
@@ -1267,7 +1601,7 @@ declare module 'ogl' {
     export interface GLTFSkinReference {
         inverseBindMatrices: GLTFAccessor;
         skeleton: GLTFSkinSkeleton;
-        joints: { worldMatrix: Mat4; bindInverse: Mat4 }[];
+        joints: {worldMatrix: Mat4; bindInverse: Mat4}[];
     }
 
     export interface GLTFMaterial {
@@ -1275,13 +1609,13 @@ declare module 'ogl' {
         extensions: object;
         extras: object;
         baseColorFactor: [number, number, number, number];
-        baseColorTexture: { texture: Texture; scale: number };
+        baseColorTexture: {texture: Texture; scale: number};
         metallicFactor: number;
         roughnessFactor: number;
-        metallicRoughnessTexture: { texture: Texture; scale: number };
-        normalTexture: { texture: Texture; scale: number };
-        occlusionTexture: { texture: Texture; scale: number };
-        emissiveTexture: { texture: Texture; scale: number };
+        metallicRoughnessTexture: {texture: Texture; scale: number};
+        normalTexture: {texture: Texture; scale: number};
+        occlusionTexture: {texture: Texture; scale: number};
+        emissiveTexture: {texture: Texture; scale: number};
         emissiveFactor: [number, number, number];
         alphaMode: string;
         alphaCutoff: number;
@@ -1304,7 +1638,7 @@ declare module 'ogl' {
         name: string;
     }
 
-    export interface GLTFDescription {}
+    export interface GLTFDescription {} // TODO: remove?
 
     export interface GLTF {
         json: GLTFDescription;
@@ -1336,34 +1670,50 @@ declare module 'ogl' {
 
         static loadBuffers(desc: GLTFDescription, dir: string): Promise<ArrayBuffer[]> | null;
 
-        static parseBufferViews(gl: OGLRenderingContext, desc: GLTFDescription, buffers: ArrayBuffer[]): ArrayBufferView[] | null;
+        static parseBufferViews(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            buffers: ArrayBuffer[],
+        ): ArrayBufferView[] | null;
 
         static parseImages(
             gl: OGLRenderingContext,
             desc: GLTFDescription,
             dir: string,
-            bufferViews: ArrayBufferView[]
+            bufferViews: ArrayBufferView[],
         ): Promise<(HTMLImageElement | ImageBitmap)[]> | null;
 
-        static parseTextures(gl: OGLRenderingContext, desc: GLTFDescription, images: (HTMLImageElement | ImageBitmap)[]): Texture[] | null;
+        static parseTextures(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            images: (HTMLImageElement | ImageBitmap)[],
+        ): Texture[] | null;
 
         static createTexture(
             gl: OGLRenderingContext,
             desc: GLTFDescription,
             images: (HTMLImageElement | ImageBitmap)[],
-            options: { sample: any; source: any; name: any; extensions: any; extras: any }
+            options: {sample: any; source: any; name: any; extensions: any; extras: any},
         ): Texture;
 
-        static parseMaterials(gl: OGLRenderingContext, desc: GLTFDescription, textures: Texture[]): GLTFMaterial[] | null;
+        static parseMaterials(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            textures: Texture[],
+        ): GLTFMaterial[] | null;
 
-        static parseSkins(gl: OGLRenderingContext, desc: GLTFDescription, bufferViews: ArrayBufferView[]): GLTFSkinReference[] | null;
+        static parseSkins(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            bufferViews: ArrayBufferView[],
+        ): GLTFSkinReference[] | null;
 
         static parseMeshes(
             gl: OGLRenderingContext,
             desc: GLTFDescription,
             bufferViews: ArrayBufferView[],
             materials: GLTFMaterial[],
-            skins: GLTFSkinReference[]
+            skins: GLTFSkinReference[],
         ): GLTFMesh[] | null;
 
         static parsePrimitives(
@@ -1373,17 +1723,21 @@ declare module 'ogl' {
             bufferViews: ArrayBufferView[],
             materials: GLTFMaterial[],
             numInstances: number,
-            isLightmap: boolean
+            isLightmap: boolean,
         ): GLTFPrimitive[];
 
-        static parseAccessor(index: number, desc: GLTFDescription, bufferViews: ArrayBufferView[]): GLTFAccessor;
+        static parseAccessor(
+            index: number,
+            desc: GLTFDescription,
+            bufferViews: ArrayBufferView[],
+        ): GLTFAccessor;
 
         static parseNodes(
             gl: OGLRenderingContext,
             desc: GLTFDescription,
             meshes: GLTFMesh[],
             skins: GLTFSkinReference[],
-            images: (HTMLImageElement | ImageBitmap)[]
+            images: (HTMLImageElement | ImageBitmap)[],
         ): (InstancedMesh | Mesh)[] | null;
 
         static populateSkins(skins: GLTFSkinReference[], nodes: (InstancedMesh | Mesh)[]): void;
@@ -1392,18 +1746,19 @@ declare module 'ogl' {
             gl: OGLRenderingContext,
             desc: GLTFDescription,
             nodes: (InstancedMesh | Mesh)[],
-            bufferViews: ArrayBufferView[]
+            bufferViews: ArrayBufferView[],
         ): GLTFAnimationReference[] | null;
 
         static parseScenes(desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[]): Transform[] | null;
 
-        static parseLights(gl: OGLRenderingContext, desc: GLTFDescription, nodes: (InstancedMesh | Mesh)[], scenes: Transform[]): GLTFLights;
+        static parseLights(
+            gl: OGLRenderingContext,
+            desc: GLTFDescription,
+            nodes: (InstancedMesh | Mesh)[],
+            scenes: Transform[],
+        ): GLTFLights;
     }
 
-    /**
-     * A render target.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/RenderTarget.js | Source}
-     */
     export interface RenderTargetOptions {
         width: number;
         height: number;
@@ -1423,6 +1778,10 @@ declare module 'ogl' {
         premultiplyAlpha: boolean;
     }
 
+    /**
+     * A render target.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/RenderTarget.js | Source}
+     */
     export class RenderTarget {
         gl: OGLRenderingContext;
         width: number;
@@ -1433,16 +1792,21 @@ declare module 'ogl' {
 
         textures: Texture[];
         texture: Texture;
+        depthTexture: Texture;
+        depthBuffer: WebGLRenderbuffer;
+        stencilBuffer: WebGLRenderbuffer;
+        depthStencilBuffer: WebGLRenderbuffer;
 
         constructor(gl: OGLRenderingContext, options?: Partial<RenderTargetOptions>);
 
         setSize(width: number, height: number): void;
     }
 
-    /**
-     * The WebGL renderer.
-     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Renderer.js | Source}
-     */
+    export type OGLRenderingContext = (WebGL2RenderingContext | WebGLRenderingContext) & {
+        renderer: Renderer;
+        canvas: HTMLCanvasElement;
+    };
+
     export interface RendererOptions {
         canvas: HTMLCanvasElement;
         width: number;
@@ -1459,36 +1823,57 @@ declare module 'ogl' {
         webgl: number;
     }
 
-    export type OGLRenderingContext = (WebGL2RenderingContext | WebGLRenderingContext) & {
-        renderer: Renderer;
-        canvas: HTMLCanvasElement;
-    };
+    export interface DeviceParameters {
+        maxTextureUnits?: number;
+        maxAnisotropy?: number;
+    }
 
-    export type RenderState = {
-        blendFunc: { src: GLenum; dst: GLenum; srcAlpha?: any; dstAlpha?: any };
-        blendEquation: { modeRGB: GLenum; modeAlpha?: any };
-        cullFace: GLenum | false;
+    export interface BlendFunc {
+        src: GLenum;
+        dst: GLenum;
+        srcAlpha?: GLenum;
+        dstAlpha?: GLenum;
+    }
+
+    export interface BlendEquation {
+        modeRGB: GLenum;
+        modeAlpha?: GLenum;
+    }
+
+    export interface Viewport {
+        x: number;
+        y: number;
+        width: number | null;
+        height: number | null;
+    }
+
+    export interface RenderState {
+        blendFunc: BlendFunc;
+        blendEquation: BlendEquation;
+        cullFace: GLenum | false | null;
         frontFace: number;
         depthMask: boolean;
         depthFunc: number;
         premultiplyAlpha: boolean;
         flipY: boolean;
         unpackAlignment: number;
-        viewport: { width: number | null; height: number | null };
-        textureUnits: Array<number>;
+        viewport: Viewport;
+        textureUnits: number[];
         activeTextureUnit: number;
-        framebuffer: any;
-        boundBuffer: any;
-        uniformLocations: Map<number, WebGLUniformLocation>;
-    };
+        framebuffer: WebGLFramebuffer | null;
+        boundBuffer?: WebGLBuffer | null;
+        uniformLocations: Map<WebGLUniformLocation, number | number[]>;
+        currentProgram: number | null;
+    }
 
-    export type RenderExtensions = Record<string, any>;
+    export interface RendererSortable extends Mesh {
+        zDepth: number;
+    }
 
-    export type DeviceParameters = {
-        maxTextureUnits: number;
-        maxAnisotropy: number;
-    };
-
+    /**
+     * The WebGL renderer.
+     * @see {@link https://github.com/oframe/ogl/blob/master/src/core/Renderer.js | Source}
+     */
     export class Renderer {
         dpr: number;
         alpha: boolean;
@@ -1501,12 +1886,10 @@ declare module 'ogl' {
 
         gl: OGLRenderingContext;
         isWebgl2: boolean;
-        width: number;
-        height: number;
 
         state: RenderState;
-        extensions: RenderExtensions;
 
+        extensions: Record<string, any>;
         vertexAttribDivisor: Function;
         drawArraysInstanced: Function;
         drawElementsInstanced: Function;
@@ -1516,6 +1899,11 @@ declare module 'ogl' {
         drawBuffers: Function;
 
         parameters: DeviceParameters;
+
+        width: number;
+        height: number;
+
+        currentGeometry?: string | null; // Set from geometry
 
         constructor(options?: Partial<RendererOptions>);
 
@@ -1543,17 +1931,26 @@ declare module 'ogl' {
 
         activeTexture(value: number): void;
 
-        bindFramebuffer(options?: object): void;
+        bindFramebuffer(options?: {target?: GLenum; buffer?: WebGLFramebuffer | null}): void;
 
-        getExtension(extension: string, webgl2Func: string, extFunc: string): Function;
+        getExtension(
+            extension: string,
+            webgl2Func?: keyof WebGL2RenderingContext,
+            extFunc?: string,
+        ): Function | null;
 
-        sortOpaque(a: number, b: number): number;
+        sortOpaque(a: RendererSortable, b: RendererSortable): number;
 
-        sortTransparent(a: number, b: number): number;
+        sortTransparent(a: RendererSortable, b: RendererSortable): number;
 
-        sortUI(a: number, b: number): number;
+        sortUI(a: RendererSortable, b: RendererSortable): number;
 
-        getRenderList(options: object): void;
+        getRenderList(options: {
+            scene: Transform;
+            camera?: Camera;
+            frustumCull: boolean;
+            sort: boolean;
+        }): Mesh[];
 
         render(
             options: Partial<{
@@ -1564,7 +1961,7 @@ declare module 'ogl' {
                 sort: boolean;
                 frustumCull: boolean;
                 clear: boolean;
-            }>
+            }>,
         ): void;
     }
 
@@ -1601,7 +1998,7 @@ declare module 'ogl' {
 
         geometry: Triangle;
 
-        uniform: { value: any };
+        uniform: {value: any};
         targetOnly: boolean;
 
         dpr: number;
@@ -1626,7 +2023,7 @@ declare module 'ogl' {
                 width: number;
                 height: number;
                 dpr: number;
-            }>
+            }>,
         ): void;
 
         render(
@@ -1639,7 +2036,7 @@ declare module 'ogl' {
                 sort: boolean;
                 frustumCull: boolean;
                 beforePostCallbacks: Function[];
-            }>
+            }>,
         ): void;
     }
 
@@ -1653,6 +2050,8 @@ declare module 'ogl' {
         uniforms: Record<string, any>;
         enabled: boolean;
         textureUniform: string;
+        vertex: string;
+        fragment: string;
     }
 
     export interface GPGPUOptions {
@@ -1668,7 +2067,7 @@ declare module 'ogl' {
         dataLength: number;
         size: number;
         coords: Float32Array;
-        uniform: { value: any };
+        uniform: {value: any};
 
         fbo: {
             read: RenderTarget;
@@ -1678,13 +2077,7 @@ declare module 'ogl' {
 
         constructor(gl: OGLRenderingContext, options?: Partial<GPGPUOptions>);
 
-        addPass(options?: {
-            vertex?: string;
-            fragment?: string;
-            uniforms?: Record<string, any>;
-            textureUniform?: string;
-            enabled?: boolean;
-        }): GPGPUPass;
+        addPass(options?: Partial<GPGPUPass>): GPGPUPass;
 
         render(): void;
     }
@@ -1704,7 +2097,7 @@ declare module 'ogl' {
     export class Flowmap {
         gl: OGLRenderingContext;
 
-        uniform: { value: RenderTarget['texture'] | null };
+        uniform: {value: RenderTarget['texture'] | null};
 
         mask: {
             read: RenderTarget;
@@ -1739,7 +2132,7 @@ declare module 'ogl' {
         light: Camera;
 
         target: RenderTarget;
-        targetUniform: { value: RenderTarget['texture'] | null };
+        targetUniform: {value: RenderTarget['texture'] | null};
 
         depthProgram: Program;
 
@@ -1758,9 +2151,20 @@ declare module 'ogl' {
             uniformTexture?: string;
         }): void;
 
-        setSize(options: { width?: number; height?: number }): void;
+        setSize(options: {width?: number; height?: number}): void;
 
-        render(options: { scene: Transform }): void;
+        render(options: {scene: Transform}): void;
+    }
+
+    export interface RaycastHit {
+        localPoint: Vec3;
+        distance: number;
+        point: Vec3;
+        faceNormal: Vec3;
+        localFaceNormal: Vec3;
+        uv: Vec2;
+        localNormal: Vec3;
+        normal: Vec3;
     }
 
     /**
@@ -1775,23 +2179,42 @@ declare module 'ogl' {
 
         castMouse(camera: Camera, mouse?: Vec2 | Vec2Tuple): void;
 
-        intersectBounds(meshes: Mesh | Mesh[], options?: { maxDistance?: number; output?: Mesh[] }): Mesh[];
+        intersectBounds(
+            meshes: Mesh | Mesh[],
+            options?: {maxDistance?: number; output?: Mesh[]},
+        ): Mesh[];
 
         intersectMeshes(
             meshes: Mesh[],
-            options?: { cullFace?: boolean; maxDistance?: number; includeUV?: boolean; includeNormal?: boolean; output?: Mesh[] }
+            options?: {
+                cullFace?: boolean;
+                maxDistance?: number;
+                includeUV?: boolean;
+                includeNormal?: boolean;
+                output?: Mesh[];
+            },
         ): Mesh[];
 
-        intersectPlane(plane: { origin: Vec3; normal: Vec3 }, origin?: Vec3, direction?: Vec3): Vec3;
+        intersectPlane(plane: {origin: Vec3; normal: Vec3}, origin?: Vec3, direction?: Vec3): Vec3;
 
         intersectSphere(sphere: Bounds, origin?: Vec3, direction?: Vec3): number;
 
         intersectBox(box: Bounds, origin?: Vec3, direction?: Vec3): number;
 
-        intersectTriangle(a: Vec3, b: Vec3, c: Vec3, backfaceCulling?: boolean, origin?: Vec3, direction?: Vec3, normal?: Vec3): number;
+        intersectTriangle(
+            a: Vec3,
+            b: Vec3,
+            c: Vec3,
+            backfaceCulling?: boolean,
+            origin?: Vec3,
+            direction?: Vec3,
+            normal?: Vec3,
+        ): number;
 
         getBarycoord(point: Vec3, a: Vec3, b: Vec3, c: Vec3, target?: Vec3): Vec3;
     }
+
+    export type ZoomStyle = 'dolly' | 'fov';
 
     /**
      * Orbit controls based on the three.js `OrbitControls` class, rewritten using ES6 with some
@@ -1811,7 +2234,7 @@ declare module 'ogl' {
         autoRotateSpeed: number;
         enableZoom: boolean;
         zoomSpeed: number;
-        zoomStyle: 'dolly' | 'fov' | string;
+        zoomStyle: ZoomStyle;
         enablePan: boolean;
         panSpeed: number;
         minPolarAngle: number;
@@ -1825,14 +2248,14 @@ declare module 'ogl' {
     export class Orbit {
         enabled: boolean;
         target: Vec3;
-        zoomStyle: 'dolly' | 'fov' | string;
+        zoomStyle: ZoomStyle;
 
         minDistance: number;
         maxDistance: number;
 
         offset: Vec3;
 
-        constructor(object: Transform & { fov: number }, options?: Partial<OrbitOptions>);
+        constructor(object: Transform & {fov: number}, options?: Partial<OrbitOptions>);
 
         update(): void;
 
