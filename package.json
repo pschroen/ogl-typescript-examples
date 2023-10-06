@@ -20,7 +20,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "ogl": "github:oframe/ogl"
+    "ogl": "^1.0.1"
   },
   "prettier": {
     "arrowParens": "always",
