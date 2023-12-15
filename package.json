@@ -13,11 +13,11 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.5",
     "concurrently": "^8.2.2",
-    "prettier": "^3.0.3",
-    "rollup": "^4.2.0",
-    "servez": "^2.1.1",
+    "prettier": "^3.1.1",
+    "rollup": "^4.9.0",
+    "servez": "^2.1.2",
     "tslib": "^2.6.2",
-    "typescript": "^5.2.2"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "ogl": "^1.0.3"
