@@ -10,7 +10,7 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "ogl": "^1.0.8"
+    "ogl": "^1.0.9"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.3.0",
