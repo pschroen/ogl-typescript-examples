@@ -10,7 +10,7 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "ogl": "pschroen/ogl#feat/gltfloader-webp-draco"
+    "ogl": "pschroen/ogl#feat/gltfloader-animation-updates"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^16.0.0",
