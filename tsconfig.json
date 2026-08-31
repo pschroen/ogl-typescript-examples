@@ -2,8 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
-    "moduleResolution": "node",
-    "outDir": "public",
+    "moduleResolution": "bundler",
+    "rootDir": "./src",
+    "outDir": "./public",
     "forceConsistentCasingInFileNames": true,
     "strict": true
   },
