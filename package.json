@@ -10,7 +10,7 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "ogl": "^1.0.11"
+    "ogl": "pschroen/ogl#feat/sampler-3d"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^16.0.3",
