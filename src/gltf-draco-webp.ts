@@ -404,10 +404,10 @@ const shader = {
         reader.onload = async function (e) {
             let desc;
             const textDecoder = new TextDecoder();
-            if (textDecoder.decode(new Uint8Array(e.target!.result as ArrayBufferLike, 0, 4)) === 'glTF') {
-                desc = GLTFLoader.unpackGLB(e.target!.result as ArrayBufferLike);
+            if (textDecoder.decode(new Uint8Array(e.target!.result as ArrayBuffer, 0, 4)) === 'glTF') {
+                desc = GLTFLoader.unpackGLB(e.target!.result as ArrayBuffer);
             } else {
-                desc = JSON.parse(textDecoder.decode(e.target!.result as ArrayBufferLike));
+                desc = JSON.parse(textDecoder.decode(e.target!.result as ArrayBuffer));
             }
             const dir = '';
             gltf = await GLTFLoader.parse(gl, desc, dir);
